@@ -45,12 +45,6 @@ app.MapGet("/stop", (GstreamerService GstreamerService) =>
     return "stopped";
 });
 
-app.MapGet("/stop", (GstreamerService GstreamerService) =>
-{
-    _ = Task.Run(GstreamerService.Stop);
-    return "stopped";
-});
-
 app.MapGet("/list", () =>
 {
     return Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).OrderByDescending(d => new FileInfo(d).CreationTime).Select((x) => x.Replace("/home/deck/Videos/DeckyStream", ""));
