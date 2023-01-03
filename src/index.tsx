@@ -1,105 +1,216 @@
 import {
   ButtonItem,
   definePlugin,
-  DialogButton,
-  Menu,
-  MenuItem,
   PanelSection,
   PanelSectionRow,
-  Router,
   ServerAPI,
-  showContextMenu,
   staticClasses,
+  Router,
+  afterPatch,
+  wrapReactType
 } from "decky-frontend-lib";
-import { VFC } from "react";
-import { FaShip } from "react-icons/fa";
+import { useState, VFC } from "react";
+import { FaCircle, FaStop, FaVideo, FaVideoSlash } from "react-icons/fa";
+import VideosTab from "./components/VideosTab";
+import VideosTabAddon from "./components/VideosTabAddon";
 
-import logo from "../assets/logo.png";
 
-// interface AddMethodArgs {
-//   left: number;
-//   right: number;
-// }
+const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
 
-const Content: VFC<{ serverAPI: ServerAPI }> = ({}) => {
-  // const [result, setResult] = useState<number | undefined>();
-
-  // const onClick = async () => {
-  //   const result = await serverAPI.callPluginMethod<AddMethodArgs, number>(
-  //     "add",
-  //     {
-  //       left: 2,
-  //       right: 2,
-  //     }
-  //   );
-  //   if (result.success) {
-  //     setResult(result.result);
-  //   }
-  // };
+  const [isRecording, setIsRecording] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   return (
-    <PanelSection title="Panel Section">
+    <PanelSection title="DeckyStream">
       <PanelSectionRow>
+        {!isRecording ? 
         <ButtonItem
+        disabled={isStreaming}
           layout="below"
-          onClick={(e) =>
-            showContextMenu(
-              <Menu label="Menu" cancelText="CAAAANCEL" onCancel={() => {}}>
-                <MenuItem onSelected={() => {}}>Item #1</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #2</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #3</MenuItem>
-              </Menu>,
-              e.currentTarget ?? window
-            )
+          onClick={() => {
+            ServerAPI.fetchNoCors('http://localhost:6969/start', {
+              method: "GET", headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              }
+            }).then((data) => console.log(data));
+            ServerAPI.toaster.toast({
+              title: "Started Recording",
+              body: "Recording has started",
+              showToast: true
+            });
+            setIsRecording(true);
+          }
           }
         >
-          Server says yolo
+        <FaCircle/>
+          Start Recording
         </ButtonItem>
-      </PanelSectionRow>
-
-      <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
-        </div>
-      </PanelSectionRow>
-
-      <PanelSectionRow>
+        : 
         <ButtonItem
           layout="below"
           onClick={() => {
-            Router.CloseSideMenus();
-            Router.Navigate("/decky-plugin-test");
-          }}
+            ServerAPI.fetchNoCors('http://localhost:6969/stop', {
+              method: "GET", headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              }
+            }).then((data) => {
+              console.log(data)
+              ServerAPI.toaster.toast({
+                title: "Stopping Recording",
+                body: "Recording has stopped",
+                showToast: true
+              });
+            });
+            setIsRecording(false);
+
+          }
+          }
         >
-          Router
+        <FaStop/>
+          Stop Recording
         </ButtonItem>
+        }
       </PanelSectionRow>
+
+      <PanelSectionRow>
+        {!isStreaming ? 
+        <ButtonItem
+        disabled={isRecording}
+          layout="below"
+          onClick={() => {
+            ServerAPI.fetchNoCors('http://localhost:6969/start-ndi', {
+              method: "GET", headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              }
+            }).then((data) => console.log(data));
+            ServerAPI.toaster.toast({
+              title: "Started NDI Stream",
+              body: "NDI stream has started",
+              showToast: true
+            });
+            setIsStreaming(true);
+          }
+          }
+        >
+          <FaVideo/>
+          Start NDI Streaming
+        </ButtonItem>
+        : 
+        <ButtonItem
+          layout="below"
+          onClick={() => {
+            ServerAPI.fetchNoCors('http://localhost:6969/stop', {
+              method: "GET", headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              }
+            }).then((data) => {
+              console.log(data)
+              ServerAPI.toaster.toast({
+                title: "Stopping NDI stream",
+                body: "NDI stream stopped",
+                showToast: true
+              });
+            });
+            setIsStreaming(false);
+
+          }
+          }
+        >
+          <FaVideoSlash/>
+          Stop NDI streaming
+        </ButtonItem>
+        }
+      </PanelSectionRow>
+
     </PanelSection>
+
+
+
   );
 };
 
-const DeckyPluginRouterTest: VFC = () => {
-  return (
-    <div style={{ marginTop: "50px", color: "white" }}>
-      Hello World!
-      <DialogButton onClick={() => Router.NavigateToStore()}>
-        Go to Store
-      </DialogButton>
-    </div>
-  );
-};
+export default definePlugin((ServerAPI: ServerAPI) => {
+  let isPressed = false;
+  async function handleButtonInput(val: any[]) {
+    for (const inputs of val) {
+      if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
+        if (!isPressed) {
+          isPressed = true;
 
-export default definePlugin((serverApi: ServerAPI) => {
-  serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-    exact: true,
+          const res = (await ServerAPI.fetchNoCors('http://localhost:6969/stop', {
+            method: "GET", headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            }
+          })).result
+
+          if (res) {
+            ServerAPI.toaster.toast({
+              title: "Clip saved",
+              body: "Tap to view",
+              icon: <FaVideo/>,
+              critical: true
+            })
+          }
+        }
+      } else if (isPressed) {
+        (Router as any).DisableHomeAndQuickAccessButtons();
+        setTimeout(() => {
+          (Router as any).EnableHomeAndQuickAccessButtons();
+        }, 1000)
+        isPressed = false;
+      }
+    }
+  }
+  
+  const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
+  const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(() => {
+    // ServerAPI.callPluginMethod<void, string | boolean>("suspend_pause", void 0)
+  });
+  const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(() => {
+    // if (running) ServerAPI.callPluginMethod<void, string | boolean>("suspend_resume", void 0)
   });
 
+  const mediaPatch = ServerAPI.routerHook.addPatch("/media", (route: any) => {
+    afterPatch(route.children, "type", (_: any, res: any) => {
+      // logAR(1, args, res);
+      wrapReactType(res);
+      afterPatch(res.type, "type", (_: any, res: any) => {
+        // logAR(2, args, res);
+        if (res?.props?.children[1]?.props?.tabs && !res?.props?.children[1]?.props?.tabs?.find((tab: any) => tab.id == "videos")) res.props.children[1].props.tabs.push({
+          id: "videos",
+          title: "Videos",
+          content: <VideosTab ServerAPI={ServerAPI}/>,
+          // footer: {
+          //   onMenuActionDescription: "Filter",
+          //   onMenuButton: () => {
+          //     console.log("menu")
+          //   }
+          // },
+          renderTabAddon: () => <VideosTabAddon ServerAPI={ServerAPI}/>
+        })
+        return res;
+      });
+      return res;
+    })
+    return route;
+  })
+
+
   return {
-    title: <div className={staticClasses.Title}>Example Plugin</div>,
-    content: <Content serverAPI={serverApi} />,
-    icon: <FaShip />,
+    title: <div className={staticClasses.Title}>DeckyStream</div>,
+    content: <Content ServerAPI={ServerAPI} />,
+    icon: <FaVideo />,
     onDismount() {
-      serverApi.routerHook.removeRoute("/decky-plugin-test");
+      inputRegistration.unregister();
+      suspendRequestRegistration.unregister();
+      suspendResumeRegistration.unregister();
+      // unlisten();
+      ServerAPI.routerHook.removePatch("/media", mediaPatch);
     },
   };
 });

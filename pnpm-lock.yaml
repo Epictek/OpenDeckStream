@@ -8,17 +8,19 @@ specifiers:
   '@rollup/plugin-typescript': ^8.3.3
   '@types/react': 16.14.0
   '@types/webpack': ^5.28.0
-  decky-frontend-lib: ^3.6.1
+  decky-frontend-lib: '^3.18.5 '
   react-icons: ^4.4.0
   rollup: ^2.77.1
   rollup-plugin-import-assets: ^1.1.1
+  rooks: ^7.4.2
   shx: ^0.3.4
   tslib: ^2.4.0
   typescript: ^4.7.4
 
 dependencies:
-  decky-frontend-lib: 3.6.1
+  decky-frontend-lib: 3.18.5
   react-icons: 4.4.0
+  rooks: 7.4.2
 
 devDependencies:
   '@rollup/plugin-commonjs': 21.1.0_rollup@2.77.1
@@ -418,10 +420,8 @@ packages:
     resolution: {integrity: sha512-uX1KG+x9h5hIJsaKR9xHUeUraxf8IODOwq9JLNPq6BwB04a/xgpq3rcx47l5BZu5zBPlgD342tdke3Hom/nJRA==}
     dev: true
 
-  /decky-frontend-lib/3.6.1:
-    resolution: {integrity: sha512-NBlltn4EktqFgD1fj2AU0ccJJNMNgcqCnmhYd34Z5xR7ypGNT2oSqfSvFIlzU4WbDL9RyrcHSJlSMdYk6n4NXA==}
-    dependencies:
-      minimist: 1.2.7
+  /decky-frontend-lib/3.18.5:
+    resolution: {integrity: sha512-CTIJs61La17spws5IzAbLbZ/Bqe+gYgnO6xOrolK1QZh7ZbZeoQ67dtnI0zqRMMC10J8H7jPdqmQnwGN10/bzw==}
     dev: false
 
   /deepmerge/4.2.2:
@@ -608,6 +608,10 @@ packages:
     engines: {node: '>=6.11.5'}
     dev: true
 
+  /lodash.debounce/4.0.8:
+    resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
+    dev: false
+
   /magic-string/0.25.9:
     resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
     dependencies:
@@ -640,10 +644,6 @@ packages:
     resolution: {integrity: sha512-Jsjnk4bw3YJqYzbdyBiNsPWHPfO++UGG749Cxs6peCu5Xg4nrena6OVxOYxrQTqww0Jmwt+Ref8rggumkTLz9Q==}
     dev: true
 
-  /minimist/1.2.7:
-    resolution: {integrity: sha512-bzfL1YUZsP41gmu/qjrEk0Q6i2ix/cVeAhbCbqH9u3zYutS1cLg00qhrD0M2MVdCcx4Sc0UpP2eBWo9rotpq6g==}
-    dev: false
-
   /neo-async/2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
     dev: true
@@ -667,6 +667,10 @@ packages:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
     dev: true
 
+  /performance-now/2.1.0:
+    resolution: {integrity: sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==}
+    dev: false
+
   /picocolors/1.0.0:
     resolution: {integrity: sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==}
     dev: true
@@ -680,6 +684,12 @@ packages:
     resolution: {integrity: sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==}
     engines: {node: '>=6'}
     dev: true
+
+  /raf/3.4.1:
+    resolution: {integrity: sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==}
+    dependencies:
+      performance-now: 2.1.0
+    dev: false
 
   /randombytes/2.1.0:
     resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
@@ -735,6 +745,22 @@ packages:
     optionalDependencies:
       fsevents: 2.3.2
     dev: true
+
+  /rooks/7.4.2:
+    resolution: {integrity: sha512-4vpjD3hGkc5hH7NZxViOUTmacwx5HhZH6CJjy0fQd4jR9zXzGjkmUncuFraqXj+vEsAC3LBq/OPHC5k1VBWbyg==}
+    engines: {node: '>=v10.24.1'}
+    peerDependencies:
+      react: ^16.8.0  || ^17.0.0 || ^18.0.0
+      react-dom: ^16.8.0  || ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+    dependencies:
+      lodash.debounce: 4.0.8
+      raf: 3.4.1
+    dev: false
 
   /safe-buffer/5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
