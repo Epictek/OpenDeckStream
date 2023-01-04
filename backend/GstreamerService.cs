@@ -1,5 +1,9 @@
+using System;
+using System.IO;
 using Gst;
 using System.Net;
+using System.Threading;
+using Microsoft.Extensions.Logging;
 
 public class GstreamerService : IDisposable
 {
@@ -105,7 +109,7 @@ public class GstreamerService : IDisposable
 
     public async void Stop()
     {
-        if (!isRecording) return;
+        if (!isRecording && !isStreaming) return;
         isRecording = false;
         isStreaming = false;
         
