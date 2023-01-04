@@ -9,15 +9,16 @@ public class GstreamerService : IDisposable
     Gst.Element Pipeline;
     readonly ILogger _logger;
     bool isRecording;
+    bool isStreaming;
+
     public GstreamerService(ILogger<GstreamerService> logger)
     {
         MainLoop = new GLib.MainLoop();
         _logger = logger;
 
-        string[] args = new string[0] { };
         try
         {
-            Application.Init(ref args);
+            Application.Init();
         }
         catch (Exception ex)
         {
@@ -25,13 +26,22 @@ public class GstreamerService : IDisposable
         }
     }
 
+    public bool GetIsRecording()
+    {
+        return isRecording;
+    }
+
+    public bool GetIsStreaming()
+    {
+        return isStreaming ;
+    }
+
     public void Start()
     {
 
-        if (isRecording) return;
+        if (isRecording || isStreaming) return;
         isRecording = true;
 
-        string[] args = new string[0] { };
         string videoDir = "/home/deck/Videos/DeckyStream/" + System.DateTime.Now.ToString("yyyy-M-dd");
         Directory.CreateDirectory(videoDir);
 
@@ -69,8 +79,8 @@ public class GstreamerService : IDisposable
 
     public void StartNdi()
     {
-        if (isRecording) return;
-        isRecording = true;
+        if (isRecording || isStreaming) return;
+        isStreaming = true;
 
         Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
         ! vaapipostproc
@@ -97,7 +107,8 @@ public class GstreamerService : IDisposable
     {
         if (!isRecording) return;
         isRecording = false;
-
+        isStreaming = false;
+        
         if (Pipeline != null)
         {
             Pipeline.SendEvent(Event.NewEos());
@@ -107,6 +118,8 @@ public class GstreamerService : IDisposable
     public void Dispose()
     {
         Pipeline.SendEvent(Event.NewEos());
+        Thread.Sleep(1000);
+        Pipeline.Dispose();
     }
 
 

@@ -27,33 +27,36 @@ app.UseCors(x => x.AllowAnyMethod()
                     .SetIsOriginAllowed(origin => true));
 
 
-app.MapGet("/start", (GstreamerService GstreamerService) =>
+app.MapGet("/start", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(GstreamerService.Start);
+    _ = Task.Run(gstreamerService.Start);
     return "started";
 });
 
-app.MapGet("/start-ndi", (GstreamerService GstreamerService) =>
+app.MapGet("/start-ndi", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(GstreamerService.StartNdi);
+    _ = Task.Run(gstreamerService.StartNdi);
     return "started";
 });
 
-app.MapGet("/stop", (GstreamerService GstreamerService) =>
+app.MapGet("/stop", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(GstreamerService.Stop);
+    _ = Task.Run(gstreamerService.Stop);
     return "stopped";
 });
 
+app.MapGet("/isRecording", (GstreamerService gstreamerService) => gstreamerService.GetIsRecording());
+app.MapGet("/isStreaming", (GstreamerService gstreamerService) => gstreamerService.GetIsStreaming());
+
+
 app.MapGet("/list", () =>
 {
-    return Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).OrderByDescending(d => new FileInfo(d).CreationTime).Select((x) => x.Replace("/home/deck/Videos/DeckyStream", ""));
+    return Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories)
+        .OrderByDescending(d => new FileInfo(d).CreationTime)
+        .Select((x) => x.Replace("/home/deck/Videos/DeckyStream", ""));
 });
 
-app.MapGet("/list-count", () =>
-{
-    return Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).Count();
-});
+app.MapGet("/list-count", () => Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).Length);
 
 app.UseStaticFiles(new StaticFileOptions
 {

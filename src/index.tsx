@@ -9,7 +9,7 @@ import {
   afterPatch,
   wrapReactType
 } from "decky-frontend-lib";
-import { useState, VFC } from "react";
+import { useState, VFC, useEffect } from "react";
 import { FaCircle, FaStop, FaVideo, FaVideoSlash } from "react-icons/fa";
 import VideosTab from "./components/VideosTab";
 import VideosTabAddon from "./components/VideosTabAddon";
@@ -20,6 +20,28 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
+  useEffect(() => {
+    fetch('http://localhost:6969/isRecording', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then(async (data) => {
+      const recording = await data.text();
+      setIsRecording(recording == "true");
+    })
+
+    fetch('http://localhost:6969/isStreaming', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then(async (data) => {
+      const streaming = await data.text();
+      setIsStreaming(streaming == "true");
+    })
+  }, []);
+  
   return (
     <PanelSection title="DeckyStream">
       <PanelSectionRow>
@@ -27,13 +49,13 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
         <ButtonItem
         disabled={isStreaming}
           layout="below"
-          onClick={() => {
-            ServerAPI.fetchNoCors('http://localhost:6969/start', {
+          onClick={async () => {
+            await fetch('http://localhost:6969/start', {
               method: "GET", headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
               }
-            }).then((data) => console.log(data));
+            })
             ServerAPI.toaster.toast({
               title: "Started Recording",
               body: "Recording has started",
@@ -49,8 +71,8 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
         : 
         <ButtonItem
           layout="below"
-          onClick={() => {
-            ServerAPI.fetchNoCors('http://localhost:6969/stop', {
+          onClick={async () => {
+            await fetch('http://localhost:6969/stop', {
               method: "GET", headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
