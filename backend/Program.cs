@@ -29,20 +29,17 @@ app.UseCors(x => x.AllowAnyMethod()
 
 app.MapGet("/start", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(gstreamerService.Start);
-    return "started";
+    return gstreamerService.Start();
 });
 
-app.MapGet("/start-ndi", (GstreamerService gstreamerService) =>
+app.MapGet("/start-stream", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(gstreamerService.StartNdi);
-    return "started";
+    return gstreamerService.StartStream();
 });
 
 app.MapGet("/stop", (GstreamerService gstreamerService) =>
 {
-    _ = Task.Run(gstreamerService.Stop);
-    return "stopped";
+    return gstreamerService.Stop;
 });
 
 app.MapGet("/isRecording", (GstreamerService gstreamerService) => gstreamerService.GetIsRecording());

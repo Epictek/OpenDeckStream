@@ -7,14 +7,15 @@ using Microsoft.Extensions.Logging;
 
 public class GstreamerService : IDisposable
 {
-
+    const string micSrcSink = @"alsa_input.pci-0000_04_00.5-platform-acp5x_mach.0.HiFi__hw_acp5x_0__source";
     const string audioSrcSink = @"alsa_output.pci-0000_04_00.5-platform-acp5x_mach.0.HiFi__hw_acp5x_1__sink.monitor";
+    
     GLib.MainLoop MainLoop;
     Gst.Element Pipeline;
     readonly ILogger _logger;
     bool isRecording;
     bool isStreaming;
-
+    private DeckyStreamConfig Config = new DeckyStreamConfig();
     public GstreamerService(ILogger<GstreamerService> logger)
     {
         MainLoop = new GLib.MainLoop();
@@ -40,10 +41,10 @@ public class GstreamerService : IDisposable
         return isStreaming ;
     }
 
-    public void Start()
+    public bool Start()
     {
 
-        if (isRecording || isStreaming) return;
+        if (isRecording || isStreaming) return false;
         isRecording = true;
 
         string videoDir = "/home/deck/Videos/DeckyStream/" + System.DateTime.Now.ToString("yyyy-M-dd");
@@ -60,7 +61,7 @@ public class GstreamerService : IDisposable
     ! filesink location=""{outFile}""
     pulsesrc device=""{audioSrcSink}""
     ! audioconvert
-    ! lamemp3enc target=bitrate bitrate=128 cbr=true
+    ! voaacenc  target=bitrate bitrate=128 cbr=true
     ! sink.audio_0
     ");
 
@@ -73,25 +74,38 @@ public class GstreamerService : IDisposable
         if (ret == StateChangeReturn.Failure)
         {
             _logger.LogCritical("Unable to set the pipeline to the playing state.");
-            return;
+            isRecording = false;
+            isStreaming = false;
+
+            return false;
         }
 
-        MainLoop.Run();
+        StartMainLoop();
+        return true;
+    }
+
+    void StartMainLoop()
+    {
+        ThreadPool.QueueUserWorkItem(x => MainLoop.Run());
 
     }
 
-
-    public void StartNdi()
+    public bool StartStream()
     {
-        if (isRecording || isStreaming) return;
+        if (isRecording || isStreaming) return false;
         isStreaming = true;
 
-        Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
+        if (Config.StreamingMode == StreamType.Ndi)
+        {
+            Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
         ! vaapipostproc
         ! queue 
         ! ndisinkcombiner name=combiner 
         ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{audioSrcSink}"" 
+        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{micSrcSink}"" 
+
         ! combiner.audio");
+        }
 
         Pipeline.Bus.AddSignalWatch();
         Pipeline.Bus.EnableSyncMessageEmission();
@@ -101,28 +115,34 @@ public class GstreamerService : IDisposable
         if (ret == StateChangeReturn.Failure)
         {
             _logger.LogCritical("Unable to set the pipeline to the playing state.");
-            return;
-        }
+            isRecording = false;
+            isStreaming = false;
 
-        MainLoop.Run();
+            return false;
+        }
+        
+        StartMainLoop();
+        return true;
     }
 
-    public async void Stop()
+    public void Stop()
     {
         if (!isRecording && !isStreaming) return;
-        isRecording = false;
-        isStreaming = false;
         
         if (Pipeline != null)
         {
             Pipeline.SendEvent(Event.NewEos());
         }
+        
+        isRecording = false;
+        isStreaming = false;
     }
 
     public void Dispose()
     {
         Pipeline.SendEvent(Event.NewEos());
         Thread.Sleep(1000);
+        
         Pipeline.Dispose();
     }
 
@@ -171,17 +191,19 @@ public class GstreamerService : IDisposable
                 GLib.GException gerror;
                 string debug;
                 args.Message.ParseError(out gerror, out debug);
-                _logger.LogCritical($"[Error] {gerror.Message}, debug information {debug}.");
+                _logger.LogError($"[Error] {gerror.Message}, debug information {debug}.");
                 MainLoop.Quit();
                 break;
             case MessageType.Warning:
                 IntPtr warningPtr;
                 string warning;
                 args.Message.ParseWarning(out warningPtr, out warning);
-                _logger.LogWarning($"[Warning] {warning}.");
+                _logger.LogTrace($"[Warning] {warning}.");
                 break;
             case MessageType.Eos:
                 _logger.LogInformation("[Eos] Playback has ended. Exiting!");
+                isRecording = false;
+                isStreaming = false;
                 Pipeline.SetState(State.Null);
                 Pipeline.Unref();
                 MainLoop.Quit();
@@ -192,4 +214,15 @@ public class GstreamerService : IDisposable
         }
     }
 
+}
+public enum StreamType
+{
+    Ndi,
+    // Rtmp,
+    // Twitch
+}
+
+public record DeckyStreamConfig
+{
+    public StreamType StreamingMode = StreamType.Ndi;
 }

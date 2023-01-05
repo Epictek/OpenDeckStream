@@ -53,6 +53,7 @@ const VideoModal: FunctionComponent<VideoModalProps> = ({
     }}>
       <video
         ref={videoRef}
+        preload="metadata"
         style={{
           position: "fixed",
           top: "0px",
