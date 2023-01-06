@@ -27,23 +27,24 @@ app.UseCors(x => x.AllowAnyMethod()
                     .SetIsOriginAllowed(origin => true));
 
 
-app.MapGet("/start", (GstreamerService gstreamerService) =>
-{
-    return gstreamerService.Start();
-});
+app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Start());
 
-app.MapGet("/start-stream", (GstreamerService gstreamerService) =>
-{
-    return gstreamerService.StartStream();
-});
+app.MapGet("/start-stream", (GstreamerService gstreamerService) => gstreamerService.StartStream());
 
 app.MapGet("/stop", (GstreamerService gstreamerService) =>
 {
-    return gstreamerService.Stop;
+     gstreamerService.Stop();
 });
 
 app.MapGet("/isRecording", (GstreamerService gstreamerService) => gstreamerService.GetIsRecording());
 app.MapGet("/isStreaming", (GstreamerService gstreamerService) => gstreamerService.GetIsStreaming());
+
+
+app.MapDelete("/delete/{*path}", (string path) =>
+{
+    Console.WriteLine(path);
+    File.Delete($"/home/deck/Videos/DeckyStream/{path}");
+});
 
 
 app.MapGet("/list", () =>

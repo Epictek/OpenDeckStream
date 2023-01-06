@@ -1,4 +1,4 @@
-import { Focusable, joinClassNames, showModal, Spinner } from "decky-frontend-lib";
+import { Focusable, joinClassNames, Menu, MenuItem, showContextMenu, showModal, Spinner } from "decky-frontend-lib";
 import { FunctionComponent, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useIntersectionObserverRef } from "rooks";
 import { mediaPageClasses } from "../classes";
@@ -62,9 +62,28 @@ const VideoCard: FunctionComponent<VideoCardProps> = ({ path }) => {
             videoRef?.current?.removeEventListener("loadeddata", el);
         }
     }, [load])
+
+
+    const Delete = (path: string) => {
+        fetch(`http://localhost:6969/delete${path}`, {
+            method: "DELETE", headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+            }})
+
+    }
+
     return (
         <Focusable ref={intersectRef} className={joinClassNames(mediaPageClasses.Screenshot, mediaPageClasses.HalfWidth)}>
-            <Focusable onActivate={() =>{
+            <Focusable 
+               onMenuActionDescription="options"
+               onMenuButton={() => {
+                showContextMenu(
+                    <Menu cancelText="Cancel" label="">
+                    <MenuItem tone="destructive" onSelected={() => Delete(path)}>Delete</MenuItem>
+                  </Menu>
+               )}}
+            onActivate={() =>{
                 showModal(<VideoModal source={source}/>, window)
             }} className={mediaPageClasses.ImageContainer}>
                 <div style={{display: "grid", gridTemplateAreas: "overlay"}}>

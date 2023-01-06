@@ -7,7 +7,8 @@ import {
   staticClasses,
   Router,
   afterPatch,
-  wrapReactType
+  wrapReactType,
+  Tab
 } from "decky-frontend-lib";
 import { useState, VFC, useEffect } from "react";
 import { FaCircle, FaStop, FaVideo, FaVideoSlash } from "react-icons/fa";
@@ -203,16 +204,16 @@ export default definePlugin((ServerAPI: ServerAPI) => {
       wrapReactType(res);
       afterPatch(res.type, "type", (_: any, res: any) => {
         // logAR(2, args, res);
-        if (res?.props?.children[1]?.props?.tabs && !res?.props?.children[1]?.props?.tabs?.find((tab: any) => tab.id == "videos")) res.props.children[1].props.tabs.push({
+        if (res?.props?.children[1]?.props?.tabs && !res?.props?.children[1]?.props?.tabs?.find((tab: Tab) => tab.id == "videos")) res.props.children[1].props.tabs.push({
           id: "videos",
           title: "Videos",
           content: <VideosTab ServerAPI={ServerAPI}/>,
-          // footer: {
-          //   onMenuActionDescription: "Filter",
-          //   onMenuButton: () => {
-          //     console.log("menu")
-          //   }
-          // },
+          footer: {
+             onMenuActionDescription: "Filter",
+             onMenuButton: () => {
+               console.log("menu")
+             }
+           },
           renderTabAddon: () => <VideosTabAddon ServerAPI={ServerAPI}/>
         })
         return res;

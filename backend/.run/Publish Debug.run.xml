@@ -1,6 +1,6 @@
 ﻿<component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Publish Debug" type="DotNetFolderPublish" factoryName="Publish to folder">
-    <riderPublish configuration="Debug" delete_existing_files="true" include_native_libs_for_self_extract="true" platform="Any CPU" produce_single_file="true" ready_to_run="true" runtime="linux-x64" self_contained="true" target_folder="$PROJECT_DIR$/bin/Debug/net7.0/linux-x64/publish" target_framework="net7.0" trim_unused_assemblies="true" uuid_high="-5867988116162000225" uuid_low="-5817977810015741562" />
+    <riderPublish configuration="Debug" delete_existing_files="true" include_native_libs_for_self_extract="true" platform="Any CPU" produce_single_file="true" ready_to_run="true" runtime="linux-x64" self_contained="true" target_folder="$PROJECT_DIR$/../bin" target_framework="net7.0" trim_unused_assemblies="true" uuid_high="-5867988116162000225" uuid_low="-5817977810015741562" />
     <method v="2" />
   </configuration>
 </component>

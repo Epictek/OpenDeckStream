@@ -49,3 +49,4 @@ backend/obj
 
 libs
 bin
+/.pnpm-store
