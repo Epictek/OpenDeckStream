@@ -7,40 +7,9 @@
         <OutputType>exe</OutputType>
         <PublishSingleFile>true</PublishSingleFile>
     </PropertyGroup>
-
+    
     <ItemGroup>
-      <Compile Remove="gstreamer-netcore\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Remove="gstreamer-netcore\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="gstreamer-netcore\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Content Remove="gstreamer-netcore\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\gstreamer-sharp\ges\gst-editing-services-sharp.dll.config" />
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\gstreamer-sharp\sources\gstreamer-sharp.dll.config" />
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\bin\Debug\netcoreapp3.1\gstreamer-sharp-netcore.deps.json" />
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\obj\gstreamer-sharp-netcore.csproj.nuget.dgspec.json" />
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\obj\project.assets.json" />
-      <_ContentIncludedByDefault Remove="gstreamer-netcore\obj\project.packagespec.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="gstreamer-netcore\gstreamer-sharp-netcore.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <PackageReference Include="gstreamer-sharp-netcore" Version="0.0.8" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
     </ItemGroup>
-
-   
-
 </Project>

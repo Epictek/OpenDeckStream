@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "deckystream", "deckystream.csproj", "{AE90B7E5-F5F3-4A9F-AF42-6401BAE81986}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "gstreamer-sharp-netcore", "gstreamer-netcore\gstreamer-sharp-netcore.csproj", "{DF37EB45-9391-4BBA-A40C-C19B806D250E}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

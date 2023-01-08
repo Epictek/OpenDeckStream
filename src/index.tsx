@@ -5,7 +5,6 @@ import {
   PanelSectionRow,
   ServerAPI,
   staticClasses,
-  Router,
   afterPatch,
   wrapReactType,
   Tab
@@ -42,7 +41,71 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
       setIsStreaming(streaming == "true");
     })
   }, []);
-  
+
+  async function StopRecord() {
+    await fetch('http://localhost:6969/stop', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then((data) => {
+      console.log(data)
+      ServerAPI.toaster.toast({
+        title: "Stopping Recording",
+        body: "Recording has stopped",
+        showToast: true
+      });
+    });
+    setIsRecording(false);
+  }
+
+  async function StartRecord() {
+    await fetch('http://localhost:6969/start', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    })
+    ServerAPI.toaster.toast({
+      title: "Started Recording",
+      body: "Recording has started",
+      showToast: true
+    });
+    setIsRecording(true);
+  }
+
+  function StopStreaming() {
+    fetch('http://localhost:6969/stop', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then((data) => {
+      console.log(data)
+      ServerAPI.toaster.toast({
+        title: "Stopping stream",
+        body: "Stream has stopped",
+        showToast: true
+      });
+    });
+    setIsStreaming(false);
+  }
+
+  function StartStreaming() {
+    fetch('http://localhost:6969/start-ndi', {
+      method: "GET", headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then((data) => console.log(data));
+    ServerAPI.toaster.toast({
+      title: "Started Stream",
+      body: "Stream has started",
+      showToast: true
+    });
+    setIsStreaming(true);
+  }
+
   return (
     <PanelSection title="DeckyStream">
       <PanelSectionRow>
@@ -51,48 +114,29 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
         disabled={isStreaming}
           layout="below"
           onClick={async () => {
-            await fetch('http://localhost:6969/start', {
-              method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              }
-            })
-            ServerAPI.toaster.toast({
-              title: "Started Recording",
-              body: "Recording has started",
-              showToast: true
-            });
-            setIsRecording(true);
+            await StartRecord();
           }
           }
         >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <FaCircle/>
-          Start Recording
+          <div>Start Recording</div>
+          </div>
         </ButtonItem>
         : 
         <ButtonItem
           layout="below"
           onClick={async () => {
-            await fetch('http://localhost:6969/stop', {
-              method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              }
-            }).then((data) => {
-              console.log(data)
-              ServerAPI.toaster.toast({
-                title: "Stopping Recording",
-                body: "Recording has stopped",
-                showToast: true
-              });
-            });
-            setIsRecording(false);
-
+            await StopRecord();
           }
           }
         >
-        <FaStop/>
-          Stop Recording
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+          <FaStop/>
+            <div>Stop Recording</div>
+          </div>
+
         </ButtonItem>
         }
       </PanelSectionRow>
@@ -103,48 +147,29 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
         disabled={isRecording}
           layout="below"
           onClick={() => {
-            ServerAPI.fetchNoCors('http://localhost:6969/start-ndi', {
-              method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              }
-            }).then((data) => console.log(data));
-            ServerAPI.toaster.toast({
-              title: "Started NDI Stream",
-              body: "NDI stream has started",
-              showToast: true
-            });
-            setIsStreaming(true);
+            StartStreaming();
           }
           }
         >
-          <FaVideo/>
-          Start NDI Streaming
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <FaVideo/>
+            <div>Start Streaming</div>
+          </div>
         </ButtonItem>
         : 
         <ButtonItem
           layout="below"
           onClick={() => {
-            ServerAPI.fetchNoCors('http://localhost:6969/stop', {
-              method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              }
-            }).then((data) => {
-              console.log(data)
-              ServerAPI.toaster.toast({
-                title: "Stopping NDI stream",
-                body: "NDI stream stopped",
-                showToast: true
-              });
-            });
-            setIsStreaming(false);
-
+            StopStreaming();
           }
           }
         >
-          <FaVideoSlash/>
-          Stop NDI streaming
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <FaVideoSlash/>
+            <div>Stop Streaming</div>
+          </div>
+
+
         </ButtonItem>
         }
       </PanelSectionRow>
@@ -157,47 +182,6 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
 };
 
 export default definePlugin((ServerAPI: ServerAPI) => {
-  let isPressed = false;
-  async function handleButtonInput(val: any[]) {
-    for (const inputs of val) {
-      if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
-        if (!isPressed) {
-          isPressed = true;
-
-          const res = (await ServerAPI.fetchNoCors('http://localhost:6969/stop', {
-            method: "GET", headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            }
-          })).result
-
-          if (res) {
-            ServerAPI.toaster.toast({
-              title: "Clip saved",
-              body: "Tap to view",
-              icon: <FaVideo/>,
-              critical: true
-            })
-          }
-        }
-      } else if (isPressed) {
-        (Router as any).DisableHomeAndQuickAccessButtons();
-        setTimeout(() => {
-          (Router as any).EnableHomeAndQuickAccessButtons();
-        }, 1000)
-        isPressed = false;
-      }
-    }
-  }
-  
-  const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
-  const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(() => {
-    // ServerAPI.callPluginMethod<void, string | boolean>("suspend_pause", void 0)
-  });
-  const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(() => {
-    // if (running) ServerAPI.callPluginMethod<void, string | boolean>("suspend_resume", void 0)
-  });
-
   const mediaPatch = ServerAPI.routerHook.addPatch("/media", (route: any) => {
     afterPatch(route.children, "type", (_: any, res: any) => {
       // logAR(1, args, res);
@@ -229,10 +213,6 @@ export default definePlugin((ServerAPI: ServerAPI) => {
     content: <Content ServerAPI={ServerAPI} />,
     icon: <FaVideo />,
     onDismount() {
-      inputRegistration.unregister();
-      suspendRequestRegistration.unregister();
-      suspendResumeRegistration.unregister();
-      // unlisten();
       ServerAPI.routerHook.removePatch("/media", mediaPatch);
     },
   };

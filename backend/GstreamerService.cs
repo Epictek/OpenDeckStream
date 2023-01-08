@@ -61,7 +61,7 @@ public class GstreamerService : IDisposable
     ! filesink location=""{outFile}""
     pulsesrc device=""{audioSrcSink}""
     ! audioconvert
-    ! voaacenc  target=bitrate bitrate=128 cbr=true
+    ! lamemp3enc target=bitrate bitrate=128 cbr=true
     ! sink.audio_0
     ");
 
@@ -102,9 +102,8 @@ public class GstreamerService : IDisposable
         ! queue 
         ! ndisinkcombiner name=combiner 
         ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{audioSrcSink}"" 
-        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{micSrcSink}"" 
-
         ! combiner.audio");
+//        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{micSrcSink}"" 
         }
 
         Pipeline.Bus.AddSignalWatch();
