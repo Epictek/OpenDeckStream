@@ -3,7 +3,9 @@ using System.IO;
 using Gst;
 using System.Net;
 using System.Threading;
+using deckystream;
 using Microsoft.Extensions.Logging;
+using StreamType = Gst.StreamType;
 
 public class GstreamerService : IDisposable
 {
@@ -15,7 +17,8 @@ public class GstreamerService : IDisposable
     readonly ILogger _logger;
     bool isRecording;
     bool isStreaming;
-    private DeckyStreamConfig Config = new DeckyStreamConfig();
+    
+    
     public GstreamerService(ILogger<GstreamerService> logger)
     {
         MainLoop = new GLib.MainLoop();
@@ -43,7 +46,6 @@ public class GstreamerService : IDisposable
 
     public bool Start()
     {
-
         if (isRecording || isStreaming) return false;
         isRecording = true;
 
@@ -90,12 +92,14 @@ public class GstreamerService : IDisposable
 
     }
 
-    public bool StartStream()
+    public async Task<bool> StartStream()
     {
         if (isRecording || isStreaming) return false;
         isStreaming = true;
 
-        if (Config.StreamingMode == StreamType.Ndi)
+        var config = await DeckyStreamConfig.LoadConfig();
+
+        if (config.StreamingMode == deckystream.StreamType.Ndi)
         {
             Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
         ! vaapipostproc
@@ -104,6 +108,20 @@ public class GstreamerService : IDisposable
         ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{audioSrcSink}"" 
         ! combiner.audio");
 //        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{micSrcSink}"" 
+        }
+        else
+        {
+            Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
+    ! vaapipostproc
+    ! queue
+    ! vaapih264enc
+    ! h264parse
+    ! flvmux streamable=true name=sink 
+    ! rtmpsink location=“rtmp://fra02.contribute.live-video.net/app/live_47002671_Sr2yVGWLuucaZtb3TZ1MDucba3rgT4
+     pulsesrc device=""{audioSrcSink}""
+    ! audioconvert
+    ! lamemp3enc target=bitrate bitrate=128 cbr=true
+    ! sink.audio_0");
         }
 
         Pipeline.Bus.AddSignalWatch();
@@ -213,15 +231,4 @@ public class GstreamerService : IDisposable
         }
     }
 
-}
-public enum StreamType
-{
-    Ndi,
-    // Rtmp,
-    // Twitch
-}
-
-public record DeckyStreamConfig
-{
-    public StreamType StreamingMode = StreamType.Ndi;
 }
