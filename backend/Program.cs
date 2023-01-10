@@ -1,28 +1,13 @@
-
-
-// const string UnixSocketPath = "/tmp/decky-stream.sock";
-
-// if (File.Exists(UnixSocketPath))
-// {
-//     File.Delete(UnixSocketPath);
-// }
-
-using System.Net.Http.Headers;
-using System.Text.Json;
 using deckystream;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// builder.WebHost.ConfigureKestrel(options =>
-// {
-//     options.ListenUnixSocket(UnixSocketPath);
-// });
 
 builder.Services.AddLogging(configure => configure.AddConsole());
 builder.Services.AddSingleton<GstreamerService>();
 builder.Services.AddCors();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -35,17 +20,14 @@ app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Sta
 
 app.MapGet("/start-stream", async (GstreamerService gstreamerService) => await gstreamerService.StartStream());
 
-app.MapGet("/stop", (GstreamerService gstreamerService) =>
-{
-     gstreamerService.Stop();
-});
+app.MapGet("/stop", (GstreamerService gstreamerService) => gstreamerService.Stop());
 
 app.MapGet("/config", async () => await DeckyStreamConfig.LoadConfig());
 
 app.MapPut("/config", async (ctx) =>
 {
     var config = await ctx.Request.ReadFromJsonAsync<DeckyStreamConfig>();
-    DeckyStreamConfig.SaveConfig(config);
+    await DeckyStreamConfig.SaveConfig(config);
 });
 
 
@@ -70,14 +52,6 @@ app.MapGet("/list", () =>
 
 app.MapGet("/list-count", () => Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).Length);
 
-
-app.MapGet("/twitch-callback/", async (HttpRequest request, HttpClient client) =>
-{
-    Console.WriteLine(request.GetDisplayUrl());
-    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "");
-    var url = await client.GetStringAsync("https://api.twitch.tv/helix/streams/key");
-    Console.WriteLine();
-});
 
 
 app.UseStaticFiles(new StaticFileOptions

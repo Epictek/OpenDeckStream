@@ -10,7 +10,7 @@ import {
   Tab,
   Dropdown,
   DropdownOption,
-  SliderField, Router
+  SliderField, Router, SingleDropdownOption, ToggleField
 } from "decky-frontend-lib";
 import { useState, VFC, useEffect } from "react";
 import {FaCircle, FaStop, FaTwitch, FaVideo, FaVideoSlash} from "react-icons/fa";
@@ -19,19 +19,24 @@ import VideosTabAddon from "./components/VideosTabAddon";
 
 
 interface DeckyStreamConfig {
-  StreamType?: "ndi" | "rtmp"; 
+  StreamType?: "ndi" | "rtmp";
+  RtmpEndpoint?: string;
 }
 
 const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
 
   
-  const [selectedStreamTarget, setSelectedStreamTarget] = useState({data: "ndi", label: "NDI™"});
+  const [selectedStreamTarget, setSelectedStreamTarget] = useState({data: "ndi", label: "NDI™"} as SingleDropdownOption);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isMicrophoneEnable, setIsMicrophoneEnable] = useState(false);
+
+  
+  
   const options: DropdownOption[] = [{data: "ndi", label: "NDI™"}, {data: "twitch", label: "Twitch"}];
   
-  var config: DeckyStreamConfig = {};
+  var config: DeckyStreamConfig  = {};
   
   useEffect(() => {
     fetch('http://localhost:6969/isRecording', {
@@ -54,10 +59,10 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
       setIsStreaming(streaming == "true");
     });
 
-     // GetConfig().then((d) => {
-     //   config = d;
-     //   setSelectedStreamTarget(d)
-     // })
+     GetConfig().then((d) => {
+       config = d;
+       // setSelectedStreamTarget(d)
+     })
     
   }, []);
 
@@ -111,7 +116,7 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
   }
 
   function StartStreaming() {
-    fetch('http://localhost:6969/start-ndi', {
+    fetch('http://localhost:6969/start-stream', {
       method: "GET", headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -125,16 +130,14 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
     setIsStreaming(true);
   }
 
-  function AuthTwitch(){
-
-    Router.NavigateToExternalWeb("https://id.twitch.tv/oauth2/authorize" +
-        "?response_type=token" +
-        "&client_id=yhkwxvzk4k3vxyt4agj7lnssgq5hsp" +
-        "&redirect_uri=http://localhost:6969/twitch-callback" +
-        "&scope=channel%3Aread%3Astream_key")
-    Router.CloseSideMenus()
-
-  }
+  // function AuthTwitch(){
+  //   Router.NavigateToExternalWeb("https://id.twitch.tv/oauth2/authorize" +
+  //       "?response_type=token" +
+  //       "&client_id=yhkwxvzk4k3vxyt4agj7lnssgq5hsp" +
+  //       "&redirect_uri=http://localhost:6969/twitch-callback" +
+  //       "&scope=channel%3Aread%3Astream_key")
+  //   Router.CloseSideMenus()
+  // }
 
   async function GetConfig()  {
     return await (await fetch('http://localhost:6969/config', {
@@ -232,26 +235,11 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ ServerAPI }) => {
             }}
         />        
       </PanelSectionRow>
-
       <PanelSectionRow>
-        <SliderField value={0} layout="below" min={0} max={100} validValues="range"></SliderField>
+        <ToggleField checked={isMicrophoneEnable} onChange={(e) => {
+          setIsMicrophoneEnable(e)}
+        } label="Microphone"></ToggleField>
       </PanelSectionRow>
-      
-      <PanelSectionRow>
-
-      {selectedStreamTarget.label}
-      </PanelSectionRow>
-      {/*{selectedStreamTarget == "twitch" ? */}
-
-        <PanelSectionRow>
-          <ButtonItem onClick={AuthTwitch}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <FaTwitch/>
-              <div>Login to Twitch</div>
-            </div>
-          </ButtonItem>
-        </PanelSectionRow>
-      {/*}*/}
       
     </PanelSection>
   );

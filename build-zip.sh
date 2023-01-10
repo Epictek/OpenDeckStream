@@ -49,7 +49,7 @@ ls -lla /tmp/output/$plugin
 #make zip
 mkdir -p /tmp/zips/
 mkdir -p /tmp/output/
-#cd /tmp/output/deckystream/
+cd /tmp/output/deckystream/
 zipname=/tmp/zips/${plugin}.zip
 echo $plugin
 # Names of the optional files (the license can either be called license or license.md, not both)

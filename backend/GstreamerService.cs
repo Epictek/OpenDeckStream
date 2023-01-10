@@ -2,10 +2,13 @@ using System;
 using System.IO;
 using Gst;
 using System.Net;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 using deckystream;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using StreamType = Gst.StreamType;
+using Value = GLib.Value;
 
 public class GstreamerService : IDisposable
 {
@@ -21,8 +24,8 @@ public class GstreamerService : IDisposable
     
     public GstreamerService(ILogger<GstreamerService> logger)
     {
-        MainLoop = new GLib.MainLoop();
         _logger = logger;
+        MainLoop = new GLib.MainLoop();
 
         try
         {
@@ -54,6 +57,7 @@ public class GstreamerService : IDisposable
 
         var outFile = videoDir + "/" + System.DateTime.Now.ToString("HH-mm-ss") + ".mp4";
         _logger.LogInformation("Writing to: " + outFile);
+
         Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
     ! vaapipostproc
     ! queue
@@ -61,13 +65,12 @@ public class GstreamerService : IDisposable
     ! h264parse
     ! mp4mux name=sink
     ! filesink location=""{outFile}""
-    pulsesrc device=""{audioSrcSink}""
-    ! audioconvert
-    ! lamemp3enc target=bitrate bitrate=128 cbr=true
-    ! sink.audio_0
+    audiomixer name=mix ! audioconvert lamemp3enc target=bitrate bitrate=128 cbr=true ! sink.audio_0
+    pulsesrc device=""{audioSrcSink}"" ! mix.
+    pulsesrc device=""{micSrcSink}"" ! mix.
+
     ");
-
-
+            
         Pipeline.Bus.AddSignalWatch();
         Pipeline.Bus.EnableSyncMessageEmission();
         Pipeline.Bus.Message += OnMessage;
@@ -99,31 +102,33 @@ public class GstreamerService : IDisposable
 
         var config = await DeckyStreamConfig.LoadConfig();
 
-        if (config.StreamingMode == deckystream.StreamType.Ndi)
+        if (config.StreamingMode == deckystream.StreamType.ndi)
         {
             Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
         ! vaapipostproc
         ! queue 
         ! ndisinkcombiner name=combiner 
-        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{audioSrcSink}"" 
+        ! ndisink ndi-name=""{Dns.GetHostName()}"" audiomixer name=mix 
+         pulsesrc device=""{audioSrcSink}"" ! mix.
+         pulsesrc device=""{micSrcSink}"" ! mix.
         ! combiner.audio");
-//        ! ndisink ndi-name=""{Dns.GetHostName()}"" pulsesrc device=""{micSrcSink}"" 
         }
         else
         {
+            if (!config.RtmpEndpoint.StartsWith("rtmp://")) return false;
+            
             Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
     ! vaapipostproc
     ! queue
     ! vaapih264enc
     ! h264parse
     ! flvmux streamable=true name=sink 
-    ! rtmpsink location=“rtmp://fra02.contribute.live-video.net/app/live_47002671_Sr2yVGWLuucaZtb3TZ1MDucba3rgT4
-     pulsesrc device=""{audioSrcSink}""
-    ! audioconvert
-    ! lamemp3enc target=bitrate bitrate=128 cbr=true
-    ! sink.audio_0");
+    ! rtmpsink location=""{config.RtmpEndpoint}""
+     audiomixer name=mix ! audioconvert lamemp3enc target=bitrate bitrate=128 cbr=true ! sink.audio_0
+     pulsesrc device=""{audioSrcSink}"" ! mix.
+     pulsesrc device=""{micSrcSink}"" ! mix.");
         }
-
+        
         Pipeline.Bus.AddSignalWatch();
         Pipeline.Bus.EnableSyncMessageEmission();
         Pipeline.Bus.Message += OnMessage;
@@ -137,22 +142,28 @@ public class GstreamerService : IDisposable
 
             return false;
         }
-        
+
         StartMainLoop();
         return true;
     }
 
-    public void Stop()
+    public bool Stop()
     {
-        if (!isRecording && !isStreaming) return;
+        _logger.LogInformation("Stopping pipeline");
+        if (!isRecording && !isStreaming) return true;
         
         if (Pipeline != null)
         {
-            Pipeline.SendEvent(Event.NewEos());
+            var evt = Pipeline.SendEvent(Event.NewEos());
+            if (evt)
+            {
+                isRecording = false;
+                isStreaming = false;
+            }
+            return evt;
         }
         
-        isRecording = false;
-        isStreaming = false;
+        return false;
     }
 
     public void Dispose()
