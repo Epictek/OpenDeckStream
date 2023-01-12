@@ -98,24 +98,11 @@ public class GstreamerService : IDisposable
 
         var audioMixer = Gst.ElementFactory.Make("audiomixer", "audiomixer");
  
-        var desktopAudio = Gst.ElementFactory.Make("pulsesrc", "audio1");
-        desktopAudio.SetProperty("device", new Value(micSrcSink));
+        var desktopAudio = Gst.ElementFactory.Make("pulsesrc", "desktop_audio");
+        desktopAudio.SetProperty("device", new Value(audioSrcSink));
         
-        var micAudio = Gst.ElementFactory.Make("pulsesrc", "audio2");
-        micAudio.SetProperty("device", new Value(audioSrcSink));
-
-        // var buzzer1 = Gst.ElementFactory.Make("audiotestsrc", "buzzer1");
-        // buzzer1.SetProperty("freq", new Value(1000));
-        // buzzer1.SetProperty("volume", new Value(0.5));
-        //
-        // var buzzer2 = Gst.ElementFactory.Make("audiotestsrc", "buzzer2");
-        // buzzer2.SetProperty("wave", new Value("ticks"));
-        // buzzer2.SetProperty("freq", new Value(10000));
-        // buzzer2.SetProperty("apply-tick-ramp", new Value(true));
-        // buzzer2.SetProperty("volume", new Value(1));
-        // buzzer2.SetProperty("marker-tick-period", new Value(10));
-        // buzzer2.SetProperty("sine-periods-per-tick", new Value(20));
-
+        var micAudio = Gst.ElementFactory.Make("pulsesrc", "mic_audio");
+        micAudio.SetProperty("device", new Value(micSrcSink));
 
         var audioconv = Gst.ElementFactory.Make("audioconvert");
         
@@ -133,7 +120,7 @@ public class GstreamerService : IDisposable
         
         desktopAudio.Link(audioMixer);
 
-        // if (config.MicEnabled)
+        if (config.MicEnabled)
         {
             micAudio.Link(audioMixer);
         }

@@ -22,6 +22,7 @@ import VideosTabAddon from "./components/VideosTabAddon";
 interface DeckyStreamConfig {
     StreamType?: "ndi" | "rtmp";
     RtmpEndpoint?: string;
+    MicEnabled: boolean;
 }
 
 const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
@@ -67,6 +68,8 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
             const selectOption = options.find(x => (x.data == config.StreamType)) as SingleDropdownOption;
             if (selectOption) {
                 setSelectedStreamTarget(selectOption);
+                setIsMicrophoneEnable(config.MicEnabled);
+
             }
         })
 
@@ -174,10 +177,11 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
 
     async function SetConfig() {
         return await fetch('http://localhost:6969/config', {
-            method: "PUT", headers: {
+            method: "POST", headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
-            }
+            }, 
+            body: JSON.stringify(config)
         })
     }
 
@@ -262,6 +266,8 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
             <PanelSectionRow>
                 <ToggleField checked={isMicrophoneEnable} onChange={(e) => {
                     setIsMicrophoneEnable(e)
+                    config.MicEnabled = true;
+                    SetConfig();
                 }
                 } label="Microphone"></ToggleField>
             </PanelSectionRow>

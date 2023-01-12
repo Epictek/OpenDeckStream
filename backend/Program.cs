@@ -24,7 +24,7 @@ app.MapGet("/stop", (GstreamerService gstreamerService) => gstreamerService.Stop
 
 app.MapGet("/config", async () => await DeckyStreamConfig.LoadConfig());
 
-app.MapPut("/config", async (ctx) =>
+app.MapPost("/config", async (ctx) =>
 {
     var config = await ctx.Request.ReadFromJsonAsync<DeckyStreamConfig>();
     await DeckyStreamConfig.SaveConfig(config);
