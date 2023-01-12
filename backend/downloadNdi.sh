@@ -17,7 +17,7 @@ tail -n +"$_target_line" "Install_NDI_SDK_v5_Linux.sh" | tar -zxvf -
 
 echo "Copying libs"
 
- cp -v "NDI SDK for Linux/lib/x86_64-linux-gnu/libndi.so.5.5.2" ../out/lib/libndi.so.5
+cp -v "NDI SDK for Linux/lib/x86_64-linux-gnu/libndi.so.5.5.2" /backend/out/lib/libndi.so.5
 # cp -v "NDI SDK for Linux/lib/x86_64-linux-gnu/libndi.so*" /usr/lib/
 # ldconfig
 cd ..
@@ -27,4 +27,6 @@ cd ..
 # cargo build
 # cp target/release/libgstndi.so ../out/lib/gstreamer/
 
-cp libgstndi.so out/lib/gstreamer/
+echo "Cleaning up"
+rm Install_NDI_SDK_v5_Linux.tar.gz
+rm -rfv ndi-build

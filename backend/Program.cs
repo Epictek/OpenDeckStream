@@ -43,6 +43,8 @@ app.MapDelete("/delete/{*path}", (string path) =>
 });
 
 
+app.MapGet("/debug/dot", (GstreamerService gstreamerService) => gstreamerService.GetDotDebug());
+
 app.MapGet("/list", () =>
 {
     return Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories)
@@ -53,12 +55,14 @@ app.MapGet("/list", () =>
 app.MapGet("/list-count", () => Directory.GetFiles("/home/deck/Videos/DeckyStream", "*.mp4", SearchOption.AllDirectories).Length);
 
 
-
-app.UseStaticFiles(new StaticFileOptions
+app.UseFileServer(new FileServerOptions()
 {
     FileProvider = new PhysicalFileProvider(
     "/home/deck/Videos/DeckyStream"),
-    RequestPath = "/Videos"
+    RequestPath = "/Videos",
+    EnableDirectoryBrowsing = true
 });
- 
-app.Run("http://localhost:6969");
+
+
+
+app.Run("http://*:6969");

@@ -1,3 +1,0 @@
-[submodule "backend/gstreamer-netcore"]
-	path = backend/gstreamer-netcore
-	url = https://github.com/vladkol/gstreamer-netcore

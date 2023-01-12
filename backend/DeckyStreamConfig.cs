@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 
 namespace deckystream;
@@ -15,6 +15,7 @@ public class DeckyStreamConfig
     const string CONFIG_PATH = "/home/deck/homebrew/settings/deckystream.json";
     public StreamType StreamingMode = StreamType.ndi;
     public string RtmpEndpoint;
+    public bool MicEnabled;
 
     public static async Task<DeckyStreamConfig> LoadConfig()
     {
