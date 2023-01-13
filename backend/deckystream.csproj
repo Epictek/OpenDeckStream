@@ -6,6 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <OutputType>exe</OutputType>
         <PublishSingleFile>true</PublishSingleFile>
+        <DefaultItemExcludes>$(DefaultItemExcludes);out**</DefaultItemExcludes>
+
     </PropertyGroup>
     
     <ItemGroup>

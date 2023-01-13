@@ -20,9 +20,9 @@ import VideosTabAddon from "./components/VideosTabAddon";
 
 
 interface DeckyStreamConfig {
-    StreamType?: "ndi" | "rtmp";
-    RtmpEndpoint?: string;
-    MicEnabled: boolean;
+    streamType?: "ndi" | "rtmp";
+    rtmpEndpoint?: string;
+    micEnabled: boolean;
 }
 
 const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
@@ -65,10 +65,10 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
 
         GetConfig().then((d) => {
             config = d;
-            const selectOption = options.find(x => (x.data == config.StreamType)) as SingleDropdownOption;
+            const selectOption = options.find(x => (x.data == config.streamType)) as SingleDropdownOption;
             if (selectOption) {
                 setSelectedStreamTarget(selectOption);
-                setIsMicrophoneEnable(config.MicEnabled);
+                setIsMicrophoneEnable(config.micEnabled);
 
             }
         })
@@ -221,52 +221,52 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
                 }
             </PanelSectionRow>
 
-            {/*<PanelSectionRow>*/}
-            {/*  {!isStreaming ? */}
-            {/*  <ButtonItem*/}
-            {/*  disabled={isRecording}*/}
-            {/*    layout="below"*/}
-            {/*    onClick={() => {*/}
-            {/*      StartStreaming();*/}
-            {/*    }*/}
-            {/*    }*/}
-            {/*  >*/}
-            {/*    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>*/}
-            {/*      <FaVideo/>*/}
-            {/*      <div>Start Streaming</div>*/}
-            {/*    </div>*/}
-            {/*  </ButtonItem>*/}
-            {/*  : */}
-            {/*  <ButtonItem*/}
-            {/*    layout="below"*/}
-            {/*    onClick={() => {*/}
-            {/*      StopStreaming();*/}
-            {/*    }*/}
-            {/*    }*/}
-            {/*  >*/}
-            {/*    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>*/}
-            {/*      <FaVideoSlash/>*/}
-            {/*      <div>Stop Streaming</div>*/}
-            {/*    </div>*/}
+            <PanelSectionRow>
+              {!isStreaming ? 
+              <ButtonItem
+              disabled={isRecording}
+                layout="below"
+                onClick={() => {
+                  StartStreaming();
+                }
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <FaVideo/>
+                  <div>Start Streaming</div>
+                </div>
+              </ButtonItem>
+              : 
+              <ButtonItem
+                layout="below"
+                onClick={() => {
+                  StopStreaming();
+                }
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <FaVideoSlash/>
+                  <div>Stop Streaming</div>
+                </div>
 
 
-            {/*  </ButtonItem>*/}
-            {/*  }*/}
-            {/*</PanelSectionRow>*/}
-            {/*<PanelSectionRow>*/}
-            {/*  <Dropdown*/}
-            {/*      strDefaultLabel="Select Stream Target"*/}
-            {/*      rgOptions={options}*/}
-            {/*      selectedOption={selectedStreamTarget}*/}
-            {/*      onChange={(x) => {*/}
-            {/*        setSelectedStreamTarget(x);*/}
-            {/*      }}*/}
-            {/*  />        */}
-            {/*</PanelSectionRow>*/}
+              </ButtonItem>
+              }
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <Dropdown
+                  strDefaultLabel="Select Stream Target"
+                  rgOptions={options}
+                  selectedOption={selectedStreamTarget}
+                  onChange={(x) => {
+                    setSelectedStreamTarget(x);
+                  }}
+              />        
+            </PanelSectionRow>
             <PanelSectionRow>
                 <ToggleField checked={isMicrophoneEnable} onChange={(e) => {
                     setIsMicrophoneEnable(e)
-                    config.MicEnabled = true;
+                    config.micEnabled = true;
                     SetConfig();
                 }
                 } label="Microphone"></ToggleField>

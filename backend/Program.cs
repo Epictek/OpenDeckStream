@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using deckystream;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,12 +11,16 @@ builder.Services.AddSingleton<GstreamerService>();
 builder.Services.AddCors();
 builder.Services.AddSignalR();
 
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 var app = builder.Build();
 
 app.UseCors(x => x.AllowAnyMethod()
                     .AllowAnyHeader()
                     .SetIsOriginAllowed(origin => true));
-
 
 app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Start());
 
@@ -24,24 +30,24 @@ app.MapGet("/stop", (GstreamerService gstreamerService) => gstreamerService.Stop
 
 app.MapGet("/config", async () => await DeckyStreamConfig.LoadConfig());
 
-app.MapPost("/config", async (ctx) =>
+app.MapPost("/config", async (HttpRequest ctx, ILogger<Program> logger) =>
 {
-    var config = await ctx.Request.ReadFromJsonAsync<DeckyStreamConfig>();
+    using var sr = new StreamReader(ctx.Body);
+    var content = await sr.ReadToEndAsync();
+
+    logger.LogInformation(content);
+    var config = System.Text.Json.JsonSerializer.Deserialize<DeckyStreamConfig>(content);
     await DeckyStreamConfig.SaveConfig(config);
 });
 
-
-
 app.MapGet("/isRecording", (GstreamerService gstreamerService) => gstreamerService.GetIsRecording());
 app.MapGet("/isStreaming", (GstreamerService gstreamerService) => gstreamerService.GetIsStreaming());
-
 
 app.MapDelete("/delete/{*path}", (string path) =>
 {
     Console.WriteLine(path);
     File.Delete($"/home/deck/Videos/DeckyStream/{path}");
 });
-
 
 app.MapGet("/debug/dot", (GstreamerService gstreamerService) => gstreamerService.GetDotDebug());
 
@@ -62,7 +68,5 @@ app.UseFileServer(new FileServerOptions()
     RequestPath = "/Videos",
     EnableDirectoryBrowsing = true
 });
-
-
 
 app.Run("http://*:6969");

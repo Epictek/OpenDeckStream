@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace deckystream;
 
@@ -13,9 +14,11 @@ public enum StreamType
 public class DeckyStreamConfig
 {
     const string CONFIG_PATH = "/home/deck/homebrew/settings/deckystream.json";
-    public StreamType StreamingMode = StreamType.ndi;
-    public string RtmpEndpoint;
-    public bool MicEnabled;
+
+    public StreamType StreamingMode { get; set; }
+    public string RtmpEndpoint { get; set; }
+
+    public bool MicEnabled { get; set; }
 
     public static async Task<DeckyStreamConfig> LoadConfig()
     {
@@ -26,7 +29,11 @@ public class DeckyStreamConfig
         }
         else
         {
-            var config = new DeckyStreamConfig();
+            var config = new DeckyStreamConfig()
+            {
+                StreamingMode = StreamType.ndi,
+                MicEnabled = false
+            };
             await SaveConfig(config);
             return config;
         }
@@ -34,6 +41,6 @@ public class DeckyStreamConfig
     
     public static async Task SaveConfig(DeckyStreamConfig config)
     {
-        await File.WriteAllTextAsync(CONFIG_PATH, JsonSerializer.Serialize(config));
+        await File.WriteAllTextAsync(CONFIG_PATH, JsonSerializer.Serialize(config, new JsonSerializerOptions(){Converters = { new JsonStringEnumConverter()  }}));
     }
 }
