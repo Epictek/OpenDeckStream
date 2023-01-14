@@ -25,7 +25,7 @@ public class DeckyStreamConfig
         if (File.Exists(CONFIG_PATH))
         {
             var cfg = await File.ReadAllTextAsync(CONFIG_PATH);
-            return JsonSerializer.Deserialize<DeckyStreamConfig>(cfg);
+            return JsonSerializer.Deserialize<DeckyStreamConfig>(cfg, new JsonSerializerOptions(){Converters = { new JsonStringEnumConverter()}});
         }
         else
         {

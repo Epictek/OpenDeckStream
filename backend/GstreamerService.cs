@@ -55,8 +55,6 @@ public class GstreamerService : IDisposable
     {
         var queue1 = Gst.ElementFactory.Make("queue");
         var queue2 = Gst.ElementFactory.Make("queue");
-
-        
         
         var audioMixer = Gst.ElementFactory.Make("audiomixer", "audiomixer");
 
@@ -77,8 +75,7 @@ public class GstreamerService : IDisposable
         _pipeline.Add(desktopAudio);
         _pipeline.Add(audioEnc);
         _pipeline.Add(audioconv);
-        _pipeline.Add(queue1);
-        _pipeline.Add(queue2);
+        // _pipeline.Add(queue1);
         
         audioMixer.Link(audioconv);
 
@@ -86,12 +83,14 @@ public class GstreamerService : IDisposable
 
         audioEnc.Link(outMux);
         
-        desktopAudio.Link(queue1);
-        queue1.Link(audioMixer);
-        
+        // desktopAudio.Link(queue1);
+        // queue1.Link(audioMixer);
+        desktopAudio.Link(audioMixer);
+
         _logger.LogInformation("Mic enabled {MicEnabled}", config.MicEnabled);
         if (config.MicEnabled)
         {
+            _pipeline.Add(queue2);
             _pipeline.Add(micAudio);
             micAudio.Link(queue2);
             queue2.Link(audioMixer);
@@ -111,17 +110,6 @@ public class GstreamerService : IDisposable
         var outFile = videoDir + "/" + System.DateTime.Now.ToString("HH-mm-ss") + ".mp4";
         _logger.LogInformation("Writing to: " + outFile);
 
-        //     Pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
-        // ! vaapipostproc
-        // ! queue
-        // ! vaapih264enc
-        // ! h264parse
-        // ! mp4mux name=sink
-        // ! filesink location=""{outFile}""
-        // audiomixer name=mix ! audioconvert lamemp3enc target=bitrate bitrate=128 cbr=true ! sink.audio_0
-        // pulsesrc device=""{audioSrcSink}"" ! mix.
-        // {(config.MicEnabled ? @$"pulsesrc device=""{micSrcSink}"" ! mix." : string.Empty)}
-        // ");
         _pipeline = new Pipeline();
 
         var sink = Gst.ElementFactory.Make("filesink");
@@ -182,6 +170,7 @@ public class GstreamerService : IDisposable
 
         var config = await DeckyStreamConfig.LoadConfig();
 
+        _pipeline = new Pipeline();
 
         if (config.StreamingMode == deckystream.StreamType.ndi)
         {
@@ -246,27 +235,15 @@ public class GstreamerService : IDisposable
         queue1.Link(ndisinkcombiner);
         ndisinkcombiner.Link(ndisink);
 
-        audioMixer.Link(ndisinkcombiner);
-
-        desktopAudio.Link(audioMixer);
-        micAudio.Link(audioMixer);
+        // audioMixer.Link(ndisinkcombiner);
+        //
+        // desktopAudio.Link(audioMixer);
+        // micAudio.Link(audioMixer);
     }
 
 
     private void GenerateRtmpPipeline(DeckyStreamConfig config)
     {
-        _pipeline = Parse.Launch(@$"pipewiresrc do-timestamp=true
-    ! vaapipostproc
-    ! queue
-    ! vaapih264enc
-    ! h264parse
-    ! flvmux streamable=true name=sink 
-    ! rtmpsink location=""{config.RtmpEndpoint}""
-     audiomixer name=mix ! audioconvert lamemp3enc target=bitrate bitrate=128 cbr=true ! sink.audio_0
-     pulsesrc device=""{audioSrcSink}"" ! mix.
-    {(config.MicEnabled ? @$"pulsesrc device=""{micSrcSink}"" ! mix." : string.Empty)}") as Pipeline;
-
-
         var flvmux = Gst.ElementFactory.Make("flvmux");
         flvmux.SetProperty("streamable", new Value(true));
 
@@ -359,7 +336,7 @@ public class GstreamerService : IDisposable
     {
         _pipeline.SendEvent(Event.NewEos());
         Thread.Sleep(1000);
-
+        
         _pipeline.Dispose();
     }
 

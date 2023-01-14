@@ -2,14 +2,29 @@ using System.Text.Json.Serialization;
 using deckystream;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.FileProviders;
+using Serilog;
+
+Directory.CreateDirectory("/home/deck/homebrew/logs");
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("/home/deck/homebrew/logs/deckystream.log", rollingInterval: RollingInterval.Day)
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
 
-builder.Services.AddLogging(configure => configure.AddConsole());
+// builder.Services.AddLogging(configure => configure.AddConsole());
 builder.Services.AddSingleton<GstreamerService>();
 builder.Services.AddCors();
 builder.Services.AddSignalR();
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("/home/deck/homebrew/logs/deckystream.log", rollingInterval: RollingInterval.Day)
+);
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -17,6 +32,7 @@ builder.Services.Configure<JsonOptions>(options =>
 });
 
 var app = builder.Build();
+app.UseSerilogRequestLogging();
 
 app.UseCors(x => x.AllowAnyMethod()
                     .AllowAnyHeader()

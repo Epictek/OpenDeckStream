@@ -65,12 +65,15 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
 
         GetConfig().then((d) => {
             config = d;
+            console.log(config);
+            console.log(d);
+
             const selectOption = options.find(x => (x.data == config.streamType)) as SingleDropdownOption;
             if (selectOption) {
                 setSelectedStreamTarget(selectOption);
-                setIsMicrophoneEnable(config.micEnabled);
-
             }
+            setIsMicrophoneEnable(config.micEnabled);
+
         })
 
     }, []);
