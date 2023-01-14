@@ -2,7 +2,7 @@ name: Build Plugin
 on:
   push:
     branches:
-      - main
+      - *
 
 jobs:
   build:
