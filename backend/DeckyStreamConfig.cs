@@ -13,7 +13,7 @@ public enum StreamType
 
 public class DeckyStreamConfig
 {
-    const string CONFIG_PATH = "/home/deck/homebrew/settings/deckystream.json";
+    private static string CONFIG_PATH = $"{DirectoryHelper.HOME_DIR}/settings/deckystream.json";
 
     public StreamType StreamingMode { get; set; }
     public string RtmpEndpoint { get; set; }

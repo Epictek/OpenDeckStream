@@ -4,39 +4,48 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
-Directory.CreateDirectory("/home/deck/homebrew/logs");
+
+
+Directory.CreateDirectory($"{DirectoryHelper.HOME_DIR}/logs");
 
 Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File("/home/deck/homebrew/logs/deckystream.log", rollingInterval: RollingInterval.Day)
+    .WriteTo.File($"{DirectoryHelper.HOME_DIR}/logs/deckystream.log", rollingInterval: RollingInterval.Day)
     .CreateBootstrapLogger();
+
+Log.Logger.Error(DirectoryHelper.HOME_DIR);
 
 var builder = WebApplication.CreateBuilder(args);
 
 
-// builder.Services.AddLogging(configure => configure.AddConsole());
-builder.Services.AddSingleton<GstreamerService>();
-builder.Services.AddCors();
-builder.Services.AddSignalR();
+builder.Services.AddCors(
+    options => options.AddPolicy("CorsPolicy",
+                        x => x.AllowAnyMethod().AllowCredentials().AllowAnyHeader().WithOrigins("https://steamloopback.host")));
+
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File("/home/deck/homebrew/logs/deckystream.log", rollingInterval: RollingInterval.Day)
+    .WriteTo.File($"{DirectoryHelper.HOME_DIR}/logs/deckystream.log", rollingInterval: RollingInterval.Day)
 );
 
-builder.Services.Configure<JsonOptions>(options =>
-{
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
+builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+
+
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<GstreamerService>();
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
 
-app.UseCors(x => x.AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .SetIsOriginAllowed(origin => true));
+app.UseCors("CorsPolicy");
+
+
+
+app.MapHub<StreamHub>("/streamhub");
 
 app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Start());
 
@@ -80,7 +89,7 @@ app.MapGet("/list-count", () => Directory.GetFiles("/home/deck/Videos/DeckyStrea
 app.UseFileServer(new FileServerOptions()
 {
     FileProvider = new PhysicalFileProvider(
-    "/home/deck/Videos/DeckyStream"),
+        "/home/deck/Videos/DeckyStream"),
     RequestPath = "/Videos",
     EnableDirectoryBrowsing = true
 });

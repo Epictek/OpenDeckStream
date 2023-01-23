@@ -18,6 +18,7 @@ import {FaCircle, FaStop, FaVideo, FaVideoSlash} from "react-icons/fa";
 import VideosTab from "./components/VideosTab";
 import VideosTabAddon from "./components/VideosTabAddon";
 
+import {HubConnection, HubConnectionBuilder} from "@microsoft/signalr";
 
 interface DeckyStreamConfig {
     streamType?: "ndi" | "rtmp";
@@ -25,7 +26,12 @@ interface DeckyStreamConfig {
     micEnabled: boolean;
 }
 
-const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
+
+const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({ServerAPI, Connection}) => {
+
+    Connection.on("GstreamerStateChange", (state, reason) => {
+        console.log(state, reason)
+    })
 
 
     const [selectedStreamTarget, setSelectedStreamTarget] = useState({
@@ -40,7 +46,7 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
 
     const options: DropdownOption[] = [{data: "ndi", label: "NDI™"}, {data: "rtmp", label: "RTMP"}];
 
-    var config: DeckyStreamConfig = {};
+    var config: DeckyStreamConfig = {micEnabled: false};
 
     useEffect(() => {
         fetch('http://localhost:6969/isRecording', {
@@ -79,29 +85,35 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
     }, []);
 
     async function StopRecord() {
-        await fetch('http://localhost:6969/stop', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        })
-        ServerAPI.toaster.toast({
-            title: "Stopping Recording",
-            body: "Recording has stopped",
-            showToast: true
-        });
-        setIsRecording(false);
+        var resp = await Connection.invoke("StopStream");
+
+        // await fetch('http://localhost:6969/stop', {
+        //     method: "GET", headers: {
+        //         Accept: "application/json",
+        //         "Content-Type": "application/json",
+        //     }
+        // })
+        if (resp) {
+            ServerAPI.toaster.toast({
+                title: "Stopping Recording",
+                body: "Recording has stopped",
+                showToast: true
+            });
+            setIsRecording(false);
+        }
     }
 
-    async function StartRecord() {
-        var resp = await fetch('http://localhost:6969/start', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        })
-        var data = await resp.text();
-        if (data == "true") {
+    async function StartRecord()  {
+        var resp = await Connection.invoke("StartRecord");
+    
+        // var resp = await fetch('http://localhost:6969/start', {
+        //     method: "GET", headers: {
+        //         Accept: "application/json",
+        //         "Content-Type": "application/json",
+        //     }
+        // })
+        // var data = await resp.text();
+        if (resp == "true") {
             ServerAPI.toaster.toast({
                 title: "Started Recording",
                 body: "Recording has started",
@@ -120,30 +132,36 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
     }
 
     async function StopStreaming() {
-        var resp = await fetch('http://localhost:6969/stop', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        });
-        ServerAPI.toaster.toast({
-            title: "Stopping stream",
-            body: "Stream has ended",
-            showToast: true
-        });
+        var resp = await Connection.invoke("StopStream");
 
-        setIsStreaming(false);
+        // var resp = await fetch('http://localhost:6969/stop', {
+        //     method: "GET", headers: {
+        //         Accept: "application/json",
+        //         "Content-Type": "application/json",
+        //     }
+        // });
+        if (resp) {
+            ServerAPI.toaster.toast({
+                title: "Stopping stream",
+                body: "Stream has ended",
+                showToast: true
+            });
+
+            setIsStreaming(false);
+        }
     }
 
     async function StartStreaming() {
-        var resp = await fetch('http://localhost:6969/start-stream', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        });
-        var data = await resp.text();
-        if (data == "true") {
+        var resp = await Connection.invoke("StartStream");
+
+        // var resp = await fetch('http://localhost:6969/start-stream', {
+        //     method: "GET", headers: {
+        //         Accept: "application/json",
+        //         "Content-Type": "application/json",
+        //     }
+        // });
+        // var data = await resp.text();
+        if (resp == "true") {
             ServerAPI.toaster.toast({
                 title: "Started Stream",
                 body: "Stream has started",
@@ -160,6 +178,7 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
         }
     }
 
+    
     // function AuthTwitch(){
     //   Router.NavigateToExternalWeb("https://id.twitch.tv/oauth2/authorize" +
     //       "?response_type=token" +
@@ -191,6 +210,11 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
 
     return (
         <PanelSection title="DeckyStream">
+
+            <PanelSectionRow>
+
+            </PanelSectionRow>
+            
             <PanelSectionRow>
                 {!isRecording ?
                     <ButtonItem
@@ -279,7 +303,17 @@ const Content: VFC<{ ServerAPI: ServerAPI }> = ({ServerAPI}) => {
     );
 };
 
+
 export default definePlugin((ServerAPI: ServerAPI) => {
+
+    const connection = new HubConnectionBuilder()
+        .withUrl("http://localhost:6969/streamhub")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.start()
+
+    
     const mediaPatch = ServerAPI.routerHook.addPatch("/media", (route: any) => {
         afterPatch(route.children, "type", (_: any, res: any) => {
             // logAR(1, args, res);
@@ -308,7 +342,7 @@ export default definePlugin((ServerAPI: ServerAPI) => {
 
     return {
         title: <div className={staticClasses.Title}>DeckyStream</div>,
-        content: <Content ServerAPI={ServerAPI}/>,
+        content: <Content ServerAPI={ServerAPI} Connection={connection}/>,
         icon: <FaVideo/>,
         onDismount() {
             ServerAPI.routerHook.removePatch("/media", mediaPatch);

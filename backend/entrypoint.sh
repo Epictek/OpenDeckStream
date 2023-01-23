@@ -12,6 +12,7 @@ mkdir -p /backend/out/lib/gstreamer
 
 cp -rv /usr/lib/libgst* /backend/out/lib/
 cp -rv /usr/lib/gstreamer-1.0/libgst* /backend/out/lib/gstreamer/
-cp -v /backend/libgstndi.so /backend/out/lib/gstreamer/
 
 /backend/downloadNdi.sh
+
+/backend/buildGstreamerNdi.sh
