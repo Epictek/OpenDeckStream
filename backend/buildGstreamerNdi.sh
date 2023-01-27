@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 
 git clone https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs
 cd gst-plugins-rs

@@ -10,7 +10,6 @@ import {
     Tab,
     Dropdown,
     DropdownOption,
-    SingleDropdownOption,
     ToggleField
 } from "decky-frontend-lib";
 import {useState, VFC, useEffect} from "react";
@@ -21,105 +20,66 @@ import VideosTabAddon from "./components/VideosTabAddon";
 import {HubConnection, HubConnectionBuilder} from "@microsoft/signalr";
 
 interface DeckyStreamConfig {
-    streamType?: "ndi" | "rtmp";
-    rtmpEndpoint?: string;
-    micEnabled: boolean;
+    StreamType: "ndi" | "rtmp";
+    RtmpEndpoint?: string;
+    MicEnabled: boolean;
 }
 
 
 const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({ServerAPI, Connection}) => {
 
+    Connection.on("StreamingStatusChange", (status) => {
+        console.log("StreamingStatusChange", status);
+        setIsStreaming(status);
+    })
+
+    Connection.on("RecordingStatusChange", (status) => {
+        console.log("RecordingStatusChange", status)
+        setIsRecording(status);
+    })
+    
     Connection.on("GstreamerStateChange", (state, reason) => {
         console.log(state, reason)
     })
 
-
-    const [selectedStreamTarget, setSelectedStreamTarget] = useState({
-        data: "ndi",
-        label: "NDI™"
-    } as SingleDropdownOption);
-
+    
     const [isRecording, setIsRecording] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
-    const [isMicrophoneEnable, setIsMicrophoneEnable] = useState(false);
 
 
     const options: DropdownOption[] = [{data: "ndi", label: "NDI™"}, {data: "rtmp", label: "RTMP"}];
 
-    var config: DeckyStreamConfig = {micEnabled: false};
+    var [config, setConfig] = useState({MicEnabled: false, StreamType: "ndi", RtmpEndpoint: undefined} as DeckyStreamConfig);
 
     useEffect(() => {
-        fetch('http://localhost:6969/isRecording', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        }).then(async (data) => {
-            const recording = await data.text();
-            setIsRecording(recording == "true");
-        })
 
-        fetch('http://localhost:6969/isStreaming', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        }).then(async (data) => {
-            const streaming = await data.text();
-            setIsStreaming(streaming == "true");
+        Connection.invoke("GetRecordingStatus").then((data) => setIsRecording(data));
+        Connection.invoke("GetStreamingStatus").then((data) => setIsStreaming(data));
+
+        Connection.invoke("GetConfig").then((data) => {
+            setConfig(data);
         });
-
-        GetConfig().then((d) => {
-            config = d;
-            console.log(config);
-            console.log(d);
-
-            const selectOption = options.find(x => (x.data == config.streamType)) as SingleDropdownOption;
-            if (selectOption) {
-                setSelectedStreamTarget(selectOption);
-            }
-            setIsMicrophoneEnable(config.micEnabled);
-
-        })
-
     }, []);
 
     async function StopRecord() {
         var resp = await Connection.invoke("StopStream");
-
-        // await fetch('http://localhost:6969/stop', {
-        //     method: "GET", headers: {
-        //         Accept: "application/json",
-        //         "Content-Type": "application/json",
-        //     }
-        // })
         if (resp) {
             ServerAPI.toaster.toast({
                 title: "Stopping Recording",
                 body: "Recording has stopped",
                 showToast: true
             });
-            setIsRecording(false);
         }
     }
 
     async function StartRecord()  {
         var resp = await Connection.invoke("StartRecord");
-    
-        // var resp = await fetch('http://localhost:6969/start', {
-        //     method: "GET", headers: {
-        //         Accept: "application/json",
-        //         "Content-Type": "application/json",
-        //     }
-        // })
-        // var data = await resp.text();
-        if (resp == "true") {
+        if (resp) {
             ServerAPI.toaster.toast({
                 title: "Started Recording",
                 body: "Recording has started",
                 showToast: true
             });
-            setIsRecording(true);
         } else {
             ServerAPI.toaster.toast({
                 title: "Recording failed to start",
@@ -134,40 +94,24 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
     async function StopStreaming() {
         var resp = await Connection.invoke("StopStream");
 
-        // var resp = await fetch('http://localhost:6969/stop', {
-        //     method: "GET", headers: {
-        //         Accept: "application/json",
-        //         "Content-Type": "application/json",
-        //     }
-        // });
         if (resp) {
             ServerAPI.toaster.toast({
                 title: "Stopping stream",
                 body: "Stream has ended",
                 showToast: true
             });
-
-            setIsStreaming(false);
         }
     }
 
     async function StartStreaming() {
         var resp = await Connection.invoke("StartStream");
 
-        // var resp = await fetch('http://localhost:6969/start-stream', {
-        //     method: "GET", headers: {
-        //         Accept: "application/json",
-        //         "Content-Type": "application/json",
-        //     }
-        // });
-        // var data = await resp.text();
-        if (resp == "true") {
+        if (resp) {
             ServerAPI.toaster.toast({
                 title: "Started Stream",
                 body: "Stream has started",
                 showToast: true
             });
-            setIsStreaming(true);
         } else {
             ServerAPI.toaster.toast({
                 title: "Stream failed to start",
@@ -177,34 +121,11 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
             });
         }
     }
-
     
-    // function AuthTwitch(){
-    //   Router.NavigateToExternalWeb("https://id.twitch.tv/oauth2/authorize" +
-    //       "?response_type=token" +
-    //       "&client_id=yhkwxvzk4k3vxyt4agj7lnssgq5hsp" +
-    //       "&redirect_uri=http://localhost:6969/twitch-callback" +
-    //       "&scope=channel%3Aread%3Astream_key")
-    //   Router.CloseSideMenus()
-    // }
 
-    async function GetConfig() {
-        return await (await fetch('http://localhost:6969/config', {
-            method: "GET", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }
-        })).json()
-    }
-
-    async function SetConfig() {
-        return await fetch('http://localhost:6969/config', {
-            method: "POST", headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            }, 
-            body: JSON.stringify(config)
-        })
+    async function SaveConfig(c: DeckyStreamConfig) {
+        setConfig(c);
+        await Connection.invoke("SetConfig", c);
     }
 
 
@@ -284,17 +205,16 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
               <Dropdown
                   strDefaultLabel="Select Stream Target"
                   rgOptions={options}
-                  selectedOption={selectedStreamTarget}
+                  // selectedOption={config.StreamType}
+                  selectedOption={options.find(x => (x.data == config.StreamType))}
                   onChange={(x) => {
-                    setSelectedStreamTarget(x);
+                      SaveConfig({...config, StreamType: x.data});
                   }}
               />        
             </PanelSectionRow>
             <PanelSectionRow>
-                <ToggleField checked={isMicrophoneEnable} onChange={(e) => {
-                    setIsMicrophoneEnable(e)
-                    config.micEnabled = true;
-                    SetConfig();
+                <ToggleField disabled={isRecording || isStreaming} checked={config.MicEnabled} onChange={(e) => {
+                    SaveConfig({...config, MicEnabled: e});
                 }
                 } label="Microphone"></ToggleField>
             </PanelSectionRow>

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 namespace deckystream;
 
@@ -39,6 +39,17 @@ public class StreamHub : Hub<IStreamClient>
     {
         return _gstreamerService.GetIsStreaming();
     }
+    
+    public async Task SetConfig(DeckyStreamConfig config)
+    {
+        await DeckyStreamConfig.SaveConfig(config);
+    }
+    
+    public async Task<DeckyStreamConfig> GetConfig()
+    {
+        return await DeckyStreamConfig.LoadConfig();
+    }
+
     public async Task<bool> ToggleMic(bool enabled)
     {
         if (enabled)
@@ -65,6 +76,10 @@ public enum GstreamerState
 
 public interface IStreamClient
 {
+    Task StreamingStatusChange(bool streaming);
+
+    Task RecordingStatusChange(bool recording);
+
     Task GstreamerStateChange(GstreamerState state, string reason = "");
 
 }

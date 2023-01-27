@@ -24,9 +24,47 @@ public class GstreamerService : IDisposable
     Gst.Pipeline? _ndiMicPipeline;
 
     readonly ILogger _logger;
-    public bool isRecording { get; set; }
-    bool isStreaming;
 
+    private bool isRecording;
+    
+    public bool IsRecording
+    {
+        get => isRecording;
+        set
+        {
+            isRecording = value;
+            try
+            {
+                _streamHubContext.Clients.All.RecordingStatusChange(isRecording);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SignalR StreamingStatusChange");
+            }
+
+        }
+    }
+    
+    
+    private bool isStreaming;
+    
+    public bool IsStreaming
+    {
+        get => isStreaming;
+        set
+        {
+            isStreaming = value;
+            try
+            {
+                _streamHubContext.Clients.All.StreamingStatusChange(isStreaming);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SignalR StreamingStatusChange");
+            }
+
+        }
+    }
     private readonly IHubContext<StreamHub, IStreamClient> _streamHubContext;
 
     public GstreamerService(ILogger<GstreamerService> logger, IHubContext<StreamHub, IStreamClient> streamHubContext)
@@ -50,12 +88,12 @@ public class GstreamerService : IDisposable
 
     public bool GetIsRecording()
     {
-        return isRecording;
+        return IsRecording;
     }
 
     public bool GetIsStreaming()
     {
-        return isStreaming;
+        return IsStreaming;
     }
 
 
@@ -75,29 +113,26 @@ public class GstreamerService : IDisposable
         desktopAudio = Gst.ElementFactory.Make("pulsesrc", "desktop_audio");
         desktopAudio.SetProperty("device", new Value(audioSrcSink));
 
-        micAudio = Gst.ElementFactory.Make("pulsesrc", "mic_audio");
-        micAudio.SetProperty("device", new Value(micSrcSink));
 
         audioconv = Gst.ElementFactory.Make("audioconvert");
 
         audioEnc = ElementFactory.Make("lamemp3enc");
-        audioEnc.SetProperty("target", new Value("bitrate"));
-        audioEnc.SetProperty("bitrate", new Value("128"));
+        audioEnc.SetProperty("target", new Value(1));
+        audioEnc.SetProperty("bitrate", new Value(128));
         audioEnc.SetProperty("cbr", new Value(true));
 
         _pipeline.Add(audioMixer);
+        _pipeline.Add(audioqueue);
         _pipeline.Add(desktopAudio);
         _pipeline.Add(audioEnc);
         _pipeline.Add(audioconv);
         
-        audioMixer.Link(audioconv);
-
-        audioconv.Link(audioEnc);
-
-        audioEnc.Link(outMux);
-        audioqueue.Link(audioMixer);
-
         desktopAudio.Link(audioqueue);
+        audioqueue.Link(audioMixer);
+        audioMixer.Link(audioconv);
+        audioconv.Link(audioEnc);
+        audioEnc.Link(outMux);
+
 
         _logger.LogInformation("Mic enabled {MicEnabled}", config.MicEnabled);
         if (config.MicEnabled)
@@ -110,10 +145,10 @@ public class GstreamerService : IDisposable
     public async Task<bool> Start()
     {
         var config = await DeckyStreamConfig.LoadConfig();
-        if (isRecording || isStreaming) return false;
+        if (IsRecording || IsStreaming) return false;
         await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.Starting);
 
-        isRecording = true;
+        IsRecording = true;
 
         string videoDir = "/home/deck/Videos/DeckyStream/" + System.DateTime.Now.ToString("yyyy-M-dd");
         Directory.CreateDirectory(videoDir);
@@ -160,8 +195,8 @@ public class GstreamerService : IDisposable
         if (ret == StateChangeReturn.Failure)
         {
             _logger.LogCritical("Unable to set the pipeline to the playing state.");
-            isRecording = false;
-            isStreaming = false;
+            IsRecording = false;
+            IsStreaming = false;
 
             return false;
         }
@@ -192,8 +227,8 @@ public class GstreamerService : IDisposable
 
     public async Task<bool> StartStream()
     {
-        if (isRecording || isStreaming) return false;
-        isStreaming = true;
+        if (IsRecording || IsStreaming) return false;
+        IsStreaming = true;
 
         var config = await DeckyStreamConfig.LoadConfig();
 
@@ -202,21 +237,21 @@ public class GstreamerService : IDisposable
         {
             if (config.MicEnabled || true)
             {
-                // GenerateNdiMicPipeline();
-                //
-                // _ndiMicPipeline.Bus.AddSignalWatch();
-                // _ndiMicPipeline.Bus.EnableSyncMessageEmission();
-                // _ndiMicPipeline.Bus.Message += OnNdiMicMessage;
-                // var micState = _ndiMicPipeline.SetState(State.Playing);
-                //
-                // if (micState == StateChangeReturn.Failure)
-                // {
-                //     _logger.LogCritical("Unable to set the microphone pipeline to the playing state.");
-                //     isRecording = false;
-                //     isStreaming = false;
-                //
-                //     return false;
-                // }
+                GenerateNdiMicPipeline();
+                
+                _ndiMicPipeline.Bus.AddSignalWatch();
+                _ndiMicPipeline.Bus.EnableSyncMessageEmission();
+                _ndiMicPipeline.Bus.Message += OnNdiMicMessage;
+                var micState = _ndiMicPipeline.SetState(State.Playing);
+                
+                if (micState == StateChangeReturn.Failure)
+                {
+                    _logger.LogCritical("Unable to set the microphone pipeline to the playing state.");
+                    IsRecording = false;
+                    IsStreaming = false;
+                
+                    return false;
+                }
 
                 // StartNdiMicLoop();
             }
@@ -239,8 +274,8 @@ public class GstreamerService : IDisposable
         if (ret == StateChangeReturn.Failure)
         {
             _logger.LogCritical("Unable to set the pipeline to the playing state.");
-            isRecording = false;
-            isStreaming = false;
+            IsRecording = false;
+            IsStreaming = false;
 
             return false;
         }
@@ -280,15 +315,15 @@ public class GstreamerService : IDisposable
         var queue1 = Gst.ElementFactory.Make("queue");
 
         // var audioqueue = Gst.ElementFactory.Make("queue", "audioqueue");
-        //
-        //
-        // desktopAudio = Gst.ElementFactory.Make("pulsesrc", "desktop_audio");
-        // desktopAudio.SetProperty("device", new Value(audioSrcSink));
+        
+        
+        desktopAudio = Gst.ElementFactory.Make("pulsesrc", "desktop_audio");
+        desktopAudio.SetProperty("device", new Value(audioSrcSink));
 
 
         _pipeline.Add(videopostproc);
         _pipeline.Add(queue1);
-        // _pipeline.Add(desktopAudio);
+        _pipeline.Add(desktopAudio);
         // _pipeline.Add(audioqueue);
 
         _pipeline.Add(videosrc);
@@ -301,7 +336,7 @@ public class GstreamerService : IDisposable
         queue1.Link(ndisinkcombiner);
         ndisinkcombiner.Link(ndisink);
 
-        // desktopAudio.Link(audioqueue);
+        desktopAudio.Link(ndisinkcombiner);
         // audioqueue.Link(ndisinkcombiner);
     }
 
@@ -373,7 +408,7 @@ public class GstreamerService : IDisposable
     public bool Stop()
     {
         _logger.LogInformation("Stopping pipeline");
-        if (!isRecording && !isStreaming) return true;
+        if (!IsRecording && !IsStreaming) return true;
 
         if (_ndiMicPipeline != null)
         {
@@ -386,8 +421,8 @@ public class GstreamerService : IDisposable
             var evt = _pipeline.SendEvent(Event.NewEos());
             if (evt)
             {
-                isRecording = false;
-                isStreaming = false;
+                IsRecording = false;
+                IsStreaming = false;
             }
 
             return evt;
@@ -442,8 +477,8 @@ public class GstreamerService : IDisposable
                 args.Message.ParseStateChanged(out oldstate, out newstate, out pendingstate);
                 if (newstate == State.Playing)
                 {
-                    if (isRecording) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedRecording);
-                    if (isStreaming) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedStreaming);
+                    if (IsRecording) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedRecording);
+                    if (IsStreaming) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedStreaming);
 
                 }
                 _logger.LogInformation($"[StateChange] From {oldstate} to {newstate} pending at {pendingstate}");
@@ -494,8 +529,8 @@ public class GstreamerService : IDisposable
                 break;
             case MessageType.Eos:
                 _logger.LogInformation("[Eos] Playback has ended. Exiting!");
-                isRecording = false;
-                isStreaming = false;
+                IsRecording = false;
+                IsStreaming = false;
                 _ndiMicPipeline.SetState(State.Null);
                 _pipeline.Unref();
                 _mainLoop.Quit();
@@ -516,8 +551,8 @@ public class GstreamerService : IDisposable
                 args.Message.ParseStateChanged(out oldstate, out newstate, out pendingstate);
                 if (newstate == State.Playing)
                 {
-                    if (isRecording) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedRecording);
-                    if (isStreaming) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedStreaming);
+                    if (IsRecording) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedRecording);
+                    if (IsStreaming) await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.StartedStreaming);
 
                 }
                 _logger.LogInformation($"[StateChange] From {oldstate} to {newstate} pending at {pendingstate}");
@@ -570,8 +605,8 @@ public class GstreamerService : IDisposable
                 _ = _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.Stopped, "");
 
                 _logger.LogInformation("[Eos] Playback has ended. Exiting!");
-                isRecording = false;
-                isStreaming = false;
+                IsRecording = false;
+                IsStreaming = false;
                 _pipeline.SetState(State.Null);
                 _pipeline.Unref();
                 _mainLoop.Quit();

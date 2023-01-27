@@ -13,7 +13,9 @@ public enum StreamType
 
 public class DeckyStreamConfig
 {
-    private static string CONFIG_PATH = $"{DirectoryHelper.HOME_DIR}/settings/deckystream.json";
+    public static JsonSerializerOptions JsonSerializerOptions = new JsonSerializerOptions() { Converters = { new JsonStringEnumConverter() }, PropertyNameCaseInsensitive = true };
+    
+    private static string CONFIG_PATH = $"{DirectoryHelper.SETTINGS_DIR}/deckystream.json";
 
     public StreamType StreamingMode { get; set; }
     public string RtmpEndpoint { get; set; }
@@ -25,7 +27,7 @@ public class DeckyStreamConfig
         if (File.Exists(CONFIG_PATH))
         {
             var cfg = await File.ReadAllTextAsync(CONFIG_PATH);
-            return JsonSerializer.Deserialize<DeckyStreamConfig>(cfg, new JsonSerializerOptions(){Converters = { new JsonStringEnumConverter()}});
+            return JsonSerializer.Deserialize<DeckyStreamConfig>(cfg, JsonSerializerOptions);
         }
         else
         {
@@ -41,6 +43,6 @@ public class DeckyStreamConfig
     
     public static async Task SaveConfig(DeckyStreamConfig config)
     {
-        await File.WriteAllTextAsync(CONFIG_PATH, JsonSerializer.Serialize(config, new JsonSerializerOptions(){Converters = { new JsonStringEnumConverter()  }}));
+        await File.WriteAllTextAsync(CONFIG_PATH, JsonSerializer.Serialize(config, JsonSerializerOptions));
     }
 }
