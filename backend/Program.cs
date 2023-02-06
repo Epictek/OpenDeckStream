@@ -7,7 +7,7 @@ using Microsoft.Extensions.FileProviders;
 using Serilog;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
-DirectoryHelper.CreateDirs();
+// DirectoryHelper.CreateDirs();
 
 
 CaptureFilePathHook filePathHook = new CaptureFilePathHook();
@@ -16,21 +16,29 @@ CaptureFilePathHook filePathHook = new CaptureFilePathHook();
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File($"{DirectoryHelper.LOG_DIR}/deckystream.log", rollingInterval: RollingInterval.Day, hooks: filePathHook)
+    // .WriteTo.File($"{DirectoryHelper.LOG_DIR}/deckystream.log", rollingInterval: RollingInterval.Day, hooks: filePathHook)
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
+#if DEBUG
+
+builder.Services.AddCors(
+    options => options.AddPolicy("CorsPolicy",
+        x => x.AllowAnyMethod().AllowAnyHeader().AllowAnyOrigin()));
+
+#else
+
 builder.Services.AddCors(
     options => options.AddPolicy("CorsPolicy",
                         x => x.AllowAnyMethod().AllowCredentials().AllowAnyHeader().WithOrigins("https://steamloopback.host")));
-
+#endif
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File($"{DirectoryHelper.LOG_DIR}/deckystream.log", rollingInterval: RollingInterval.Day, hooks: filePathHook)
+    // .WriteTo.File($"{DirectoryHelper.LOG_DIR}/deckystream.log", rollingInterval: RollingInterval.Day, hooks: filePathHook)
 );
 
 builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
@@ -39,6 +47,7 @@ builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.C
 builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<GstreamerService>();
+builder.Services.AddSingleton<GstreamerServiceShadow>();
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
@@ -50,6 +59,13 @@ app.UseCors("CorsPolicy");
 app.MapHub<StreamHub>("/streamhub");
 
 app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Start());
+
+app.MapGet("/start-shadow", (GstreamerService gstreamerService) => gstreamerService.StartShadow());
+app.MapGet("/save-shadow",  (GstreamerServiceShadow gstreamerService) =>
+{
+    _ = gstreamerService.StartRecording();
+    return true;
+});
 
 app.MapGet("/start-stream", async (GstreamerService gstreamerService) => await gstreamerService.StartStream());
 
@@ -127,12 +143,19 @@ app.MapGet("/list", () =>
 app.MapGet("/list-count", () => Directory.GetFiles(DirectoryHelper.CLIPS_DIR, "*.mp4", SearchOption.AllDirectories).Length);
 
 
-app.UseFileServer(new FileServerOptions()
-{
-    FileProvider = new PhysicalFileProvider(
-        DirectoryHelper.CLIPS_DIR),
-    RequestPath = "/Videos",
-    EnableDirectoryBrowsing = true
-});
+// app.UseFileServer(new FileServerOptions()
+// {
+//     FileProvider = new PhysicalFileProvider(
+//         DirectoryHelper.CLIPS_DIR),
+//     RequestPath = "/Videos",
+//     EnableDirectoryBrowsing = true
+// });
 
+
+var GstreamerServiceShadow = app.Services.GetService<GstreamerServiceShadow>();
+
+_ = Task.Run(() => { 
+_ = GstreamerServiceShadow.StartPipeline();
+});
+    
 app.Run("http://*:6969");
