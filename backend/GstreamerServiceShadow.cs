@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Pipelines;
 using Gst;
 using System.Net;
+using System.Runtime;
 using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 using deckystream;
@@ -10,26 +11,25 @@ using GLib;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Application = Gst.Application;
+using DateTime = Gst.DateTime;
 using StreamType = Gst.StreamType;
 using Task = System.Threading.Tasks.Task;
 using Value = GLib.Value;
 
-public class GstreamerServiceShadow : IDisposable
+public class GstreamerServiceShadow: IDisposable 
 {
     const string micSrcSink = @"alsa_input.pci-0000_04_00.5-platform-acp5x_mach.0.HiFi__hw_acp5x_0__source";
     const string audioSrcSink = @"alsa_output.pci-0000_04_00.5-platform-acp5x_mach.0.HiFi__hw_acp5x_1__sink.monitor";
     int buffer_count = 0;
 
     GLib.MainLoop _mainLoop;
-    // GLib.MainLoop _ndiMicLoop;
 
     Gst.Pipeline? pipeline;
 
     readonly ILogger _logger;
-
-
+    
     private readonly IHubContext<StreamHub, IStreamClient> _streamHubContext;
-
+    private System.DateTime PipelineStartTime;
     public GstreamerServiceShadow(ILogger<GstreamerServiceShadow> logger, IHubContext<StreamHub, IStreamClient> streamHubContext)
     {
         _logger = logger;
@@ -49,54 +49,80 @@ public class GstreamerServiceShadow : IDisposable
         // _pipeline = new Pipeline();
     }
 
+    public string GetDotDebug()
+    {
+     return Gst.Debug.BinToDotData(pipeline, DebugGraphDetails.All);
+    }
+    
     private Element muxer;
     private Element vrecq;
     private Element filesink;
     private Pad vrecq_src;
     private ulong vrecq_src_probe_id;
-    
-    
-    public Task StartPipeline()
+
+    public async Task StopPipeline()
     {
-     const string VIDEO_CAPS = "video/x-raw,width=1920,height=1080,format=I420";
-
-     pipeline = (Gst.Parse.Launch($@"videotestsrc ! {VIDEO_CAPS}
-! clockoverlay ! x264enc tune=zerolatency bitrate=8000 ! tee name=vtee
-vtee. ! queue ! avdec_h264 ! videoconvert ! videoscale ! autovideosink
-vtee. ! queue name=vrecq ! mp4mux name=mux ! filesink async=false name=filesink") as Pipeline)!;
- 
- 
-     vrecq = pipeline.GetByName("vrecq");
-     vrecq.SetProperty("max-size-time", new Value(unchecked(5 * 1000000000)));
-     vrecq.SetProperty("max-size-bytes", new Value(0));
-     vrecq.SetProperty("max-size-buffers", new Value(0));
-
-//sets the queue to dispose of old buffer frames
-     vrecq.SetProperty("leaky", new Value(2));
-
-     vrecq_src = vrecq.GetStaticPad("src");
-     vrecq_src_probe_id = vrecq_src.AddProbe(PadProbeType.Block | PadProbeType.Buffer, block_probe_cb);
-
-     filesink = pipeline.GetByName("filesink");
-     UpdateFileSinkLocation ();
-
-
-      muxer = pipeline.GetByName("mux");
-
-     pipeline.SetState(State.Playing);
-
-
-     pipeline.Bus.AddSignalWatch();
-     pipeline.Bus.EnableSyncMessageEmission();
-     pipeline.Bus.Message += OnMessage;
-
-     _mainLoop.Run();
-
+     _mainLoop.Quit();
      pipeline.SetState(State.Null);
 
-
      pipeline.Unref();
-     return Task.CompletedTask;
+    }
+
+    
+    public async Task StartPipeline()
+    {
+     PipelineStartTime = System.DateTime.UtcNow;
+     try
+     {
+      var config = await DeckyStreamConfig.LoadConfig();
+
+      var videoSrc = "pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ";
+      //var videoSrc = "videotestsrc ! video/x-raw,width=1920,height=1080,format=I420 ! clockoverlay ! x264enc tune=zerolatency bitrate=8000";
+
+      pipeline = (Gst.Parse.Launch($@"{videoSrc} ! queue name=vrecq ! mp4mux name=muxer ! filesink async=false name=filesink
+pulsesrc device=""{audioSrcSink}"" ! audiorate ! audioconvert ! lamemp3enc target=bitrate bitrate=320 cbr=false ! muxer.audio_0") as Pipeline)!;
+
+      var buffer = config.ReplayBuffer;
+      //todo: workout sane values for the buffer
+      if (buffer is < 5 or > 600)
+      {
+       _logger.LogError("Invalid buffer length: {buffer}", buffer);
+       return;
+      }
+
+      vrecq = pipeline.GetByName("vrecq");
+      vrecq.SetProperty("max-size-time", new Value(buffer * Constants.SECOND));
+      vrecq.SetProperty("max-size-bytes", new Value(0));
+      vrecq.SetProperty("max-size-buffers", new Value(0));
+
+      //sets the queue to dispose of old buffer frames
+      vrecq.SetProperty("leaky", new Value(2));
+
+      vrecq_src = vrecq.GetStaticPad("src");
+      vrecq_src_probe_id = vrecq_src.AddProbe(PadProbeType.Block | PadProbeType.Buffer, block_probe_cb);
+
+      filesink = pipeline.GetByName("filesink");
+      UpdateFileSinkLocation();
+
+
+      muxer = pipeline.GetByName("muxer");
+
+      pipeline.SetState(State.Playing);
+
+      pipeline.Bus.AddSignalWatch();
+      pipeline.Bus.EnableSyncMessageEmission();
+      pipeline.Bus.Message += OnMessage;
+
+      _mainLoop.Run();
+
+      pipeline.SetState(State.Null);
+
+      pipeline.Unref();
+     }
+     catch (Exception ex)
+     {
+      _logger.LogError(ex, "Error starting pipeline");
+     }
     }
     
     
@@ -118,6 +144,7 @@ vtee. ! queue name=vrecq ! mp4mux name=mux ! filesink async=false name=filesink"
      {
       _logger.LogError(ex, "Error sending EOS");
      }
+     isSaving = false;
     }
 
     
@@ -153,27 +180,35 @@ PadProbeReturn probe_drop_one_cb(Pad pad, PadProbeInfo info)
  }
 
 
-
-public async Task StartRecording() {
-
- _logger.LogInformation("timeout, unblocking pad to start recording");
-
- /* need to hook up another probe to drop the initial old buffer stuck
-  * in the blocking pad probe */
- vrecq_src.AddProbe(PadProbeType.Buffer, probe_drop_one_cb);
-
- 
- /* now remove the blocking probe to unblock the pad */
- if (vrecq_src_probe_id != 0)
+private bool isSaving;
+public async Task StartRecording()
+{
+ if (isSaving) return;
+ isSaving = true;
+ try
  {
-  vrecq_src.RemoveProbe(vrecq_src_probe_id);
+  _logger.LogInformation("timeout, unblocking pad to start recording");
+
+  /* need to hook up another probe to drop the initial old buffer stuck
+   * in the blocking pad probe */
+  vrecq_src.AddProbe(PadProbeType.Buffer, probe_drop_one_cb);
+
+
+  /* now remove the blocking probe to unblock the pad */
+  if (vrecq_src_probe_id != 0)
+  {
+   vrecq_src.RemoveProbe(vrecq_src_probe_id);
+  }
+
+  vrecq_src_probe_id = 0;
+
+  await Task.Delay(5000);
+  StopRecording();
  }
-
- vrecq_src_probe_id = 0;
-
- await Task.Delay(5000);
- StopRecording();
- 
+ catch (Exception ex)
+ {
+  _logger.LogError("StartRecording fail");
+ }
 }
 
 PadProbeReturn block_probe_cb(Pad pad, PadProbeInfo info)
@@ -185,78 +220,92 @@ PadProbeReturn block_probe_cb(Pad pad, PadProbeInfo info)
 
 void StopRecording()
 {
- _logger.LogInformation("stop recording");
-
- vrecq_src_probe_id = vrecq_src.AddProbe(PadProbeType.Block | PadProbeType.Buffer, block_probe_cb);
- 
- // g_thread_new ("eos-push-thread", push_eos_thread, app);  
- Task.Run(push_eos_thread);
-
-
- // pipeline.SendEvent(Event.NewEos());
+ try
+ {
+  _logger.LogInformation("stop recording");
+  vrecq_src_probe_id = vrecq_src.AddProbe(PadProbeType.Block | PadProbeType.Buffer, block_probe_cb);
+  Task.Run(push_eos_thread);
+ } catch (Exception ex)
+ {
+  _logger.LogError("StopRecording fail");
+ }
 
 }
 
 
 async void OnMessage(object e, MessageArgs args)
 {
- switch (args.Message.Type)
+ try
  {
-  case MessageType.Error:
-   GLib.GException gerror;
-   string debug;
-   args.Message.ParseError(out gerror, out debug);
-   _logger.LogInformation($"[Error] {gerror.Message}, debug information {debug}.");
-   _mainLoop.Quit();
-   break;
-  case MessageType.Warning:
-   // IntPtr warningPtr;
-   // string warning;
-   // args.Message.ParseWarning(out warningPtr, out warning);
-   // _logger.LogTrace($"[Warning] {warning}.");
-   break;
+  _logger.LogInformation($"[{args.Message.Type}] {args.Message}");
 
-  case MessageType.Eos:
-   _logger.LogInformation("EOS from " + args.Message.Src.Name + ": " + args.Message.Src.GetType());
-   //
-   // if (args.Message.HasName("GstBinFowarded"))
-   // {
-   //  _logger.LogInformation("EOS from " + args.Message.Src.Name + ": " + args.Message.Src.GetType());
-   //
-   //  filesink.SetState(State.Null);
-   //  muxer.SetState(State.Null);
-   //
-   //  UpdateFileSinkLocation();
-   //
-   //  filesink.SetState(State.Playing);
-   //  muxer.SetState(State.Playing);
-   //  args.Message.Dispose();
-    //
-    // await Task.Delay(5000);
-    //
-    // StartRecording();
-   //}
+  switch (args.Message.Type)
+  {
+   case MessageType.StateChanged:
+    State oldstate, newstate, pendingstate;
+    args.Message.ParseStateChanged(out oldstate, out newstate, out pendingstate);
+    _logger.LogInformation($"[StateChange] From {oldstate} to {newstate} pending at {pendingstate}");
+    Directory.CreateDirectory(Path.Join(DirectoryHelper.LOG_DIR, PipelineStartTime.ToString("yyyy-M-d-hh-mm-ss")));
+    var file = File.CreateText(Path.Join(DirectoryHelper.LOG_DIR, PipelineStartTime.ToString("yyyy-M-d-hh-mm-ss"), $"{System.DateTime.UtcNow.ToString("HHms")}-{oldstate}-{newstate}-{pendingstate}")); 
+    await file.WriteAsync(GetDotDebug());
+    break;
+   case MessageType.Error:
+    GLib.GException gerror;
+    string debug;
+    args.Message.ParseError(out gerror, out debug);
+    _logger.LogError($"[Error] {gerror.Message}, debug information {debug}.");
+    _mainLoop.Quit();
+    break;
+   case MessageType.Warning:
+    IntPtr warningPtr;
+    string warning;
+    args.Message.ParseWarning(out warningPtr, out warning);
+    _logger.LogTrace($"[Warning] {warning}.");
+    break;
+   case MessageType.Element:
 
-   break;
-  case MessageType.Element:
+    if (args.Message.Structure.HasName("GstBinForwarded"))
+    {
 
-   if (args.Message.Structure.HasName("GstBinForwarded")) {
+     _logger.LogInformation("Forwarded EOS from " + args.Message.Structure.Type + ":" + args.Message.Src.Name + ": " + args.Message.Src.GetType());
 
-    _logger.LogInformation("EOS from "  + args.Message.Structure.Type + ":" + args.Message.Src.Name + ": " + args.Message.Src.GetType());
+     filesink.SetState(State.Null);
+     muxer.SetState(State.Null);
 
-    filesink.SetState(State.Null);
-    muxer.SetState(State.Null);
+     UpdateFileSinkLocation();
 
-    UpdateFileSinkLocation();
+     filesink.SetState(State.Playing);
+     muxer.SetState(State.Playing);
+     args.Message.Dispose();
 
-    filesink.SetState(State.Playing);
-    muxer.SetState(State.Playing);
-    args.Message.Dispose();
+    }
 
-   }
+    break;
+   // case MessageType.Eos:
+   //  if (args.Message.Structure == null || !args.Message.Structure.HasName("GstBinForwarded"))
+   //  {
+   //   _logger.LogInformation("EOS from " + args.Message.Src.Name + ": " + args.Message.Src.GetType());
+   //   // _logger.LogInformation("Stopping pipeline");
+   //   // _mainLoop.Quit();
+   //   //todo: how to tell forwarded EOS and real EOS apart?
+   //  }
+   //  break;
+   case MessageType.StreamStatus:
+    Element owner;
+    StreamStatusType type;
+    args.Message.ParseStreamStatus(out type, out owner);
+    _logger.LogInformation($"[StreamStatus] Type {type} from {owner}");
+    break;
 
-   break;
+   default:
+    _logger.LogInformation($"[Recv] {args.Message.Type} {args.Message}");
+    break;
 
+  }
+ }
+ catch (Exception ex)
+ {
+  _logger.LogError(ex, "OnMessage fail");
  }
 }
 

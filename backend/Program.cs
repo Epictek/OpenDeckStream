@@ -60,11 +60,22 @@ app.MapHub<StreamHub>("/streamhub");
 
 app.MapGet("/start", (GstreamerService gstreamerService) => gstreamerService.Start());
 
-app.MapGet("/start-shadow", (GstreamerService gstreamerService) => gstreamerService.StartShadow());
+app.MapGet("/start-shadow", (GstreamerServiceShadow gstreamerService) =>
+{
+     _ = gstreamerService.StartPipeline();
+     return "";
+});
+
+app.MapGet("/stop-shadow", (GstreamerServiceShadow gstreamerService) =>
+{
+    _ = gstreamerService.StopPipeline();
+    return "";
+});
+
 app.MapGet("/save-shadow",  (GstreamerServiceShadow gstreamerService) =>
 {
     _ = gstreamerService.StartRecording();
-    return true;
+    return "";
 });
 
 app.MapGet("/start-stream", async (GstreamerService gstreamerService) => await gstreamerService.StartStream());
@@ -93,6 +104,8 @@ app.MapDelete("/delete/{*path}", (string path) =>
 });
 
 app.MapGet("/debug/dot", (GstreamerService gstreamerService) => gstreamerService.GetDotDebug());
+
+app.MapGet("/debug/shadow/dot", (GstreamerServiceShadow gstreamerService) => gstreamerService.GetDotDebug());
 
 app.MapGet("/debug/zip", async (HttpResponse response, GstreamerService gstreamerService, ILogger<Program> logger) =>
 {
@@ -152,10 +165,6 @@ app.MapGet("/list-count", () => Directory.GetFiles(DirectoryHelper.CLIPS_DIR, "*
 // });
 
 
-var GstreamerServiceShadow = app.Services.GetService<GstreamerServiceShadow>();
 
-_ = Task.Run(() => { 
-_ = GstreamerServiceShadow.StartPipeline();
-});
-    
+
 app.Run("http://*:6969");

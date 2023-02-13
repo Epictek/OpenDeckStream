@@ -25,26 +25,6 @@ public class GstreamerService : IDisposable
 
     readonly ILogger _logger;
 
-    private bool isShadowing;
-    
-    public bool IsShadowing
-    {
-        get => isShadowing;
-        set
-        {
-            isShadowing = value;
-            // try
-            // {
-            //     _streamHubContext.Clients.All.RecordingStatusChange(isShadowing);
-            // }
-            // catch (Exception ex)
-            // {
-            //     _logger.LogError(ex, "SignalR StreamingStatusChange");
-            // }
-
-        }
-    }
-    
     private bool isRecording;
     
     public bool IsRecording
@@ -164,108 +144,9 @@ public class GstreamerService : IDisposable
         }
     }
     
-    public async Task SaveShadowRecording()
-    {
-        string videoDir = Path.Join(DirectoryHelper.CLIPS_DIR, System.DateTime.Now.ToString("yyyy-M-dd"));
-        Directory.CreateDirectory(videoDir);
-
-        // var outFile = Path.Join(DirectoryHelper.CLIPS_DIR ,System.DateTime.Now.ToString("HH-mm-ss") + ".mp4");
-        // fileSink.SetProperty("location", new Value(outFile));
-
-        // _logger.LogInformation("Writing to: " + outFile);
-
-        var tempProbeId = queueSrc.AddProbe(PadProbeType.Buffer, ((pad, info) => { return PadProbeReturn.Ok;}));
-        
-        queueSrc.RemoveProbe(blockProbeId);
-
-        await Task.Delay(50000);
-        queueSrc.RemoveProbe(tempProbeId);
-
-        //add probe to block recording again
-        blockProbeId = queueSrc.AddProbe(PadProbeType.Blocking , (pad, info) =>
-        {
-            _logger.LogInformation(pad.Name + " Blocked");
-            return PadProbeReturn.Ok;
-        });
-
-    }
 
     private Element fileSink;
     
-    public async Task<bool> StartShadow()
-    {
-        var config = await DeckyStreamConfig.LoadConfig();
-        if (IsRecording || IsStreaming || IsShadowing) return false;
-        await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.Starting);
-
-        IsShadowing = true;
-
-
-        _pipeline = new Pipeline();
-        _pipeline.ElementAdded += PipelineOnElementAdded;
-        _pipeline.ElementRemoved += PipelineOnElementRemoved;
-        fileSink = Gst.ElementFactory.Make("filesink");
-        var videosrc = Gst.ElementFactory.Make("videotestsrc");
-
-        // var videosrc = Gst.ElementFactory.Make("pipewiresrc");
-        var outFile = Path.Join(DirectoryHelper.CLIPS_DIR ,System.DateTime.Now.ToString("HH-mm-ss") + ".mp4");
-        fileSink.SetProperty("location", new Value(outFile));
-        
-        // var videopostproc = Gst.ElementFactory.Make("vaapipostproc");
-        var encQueue = Gst.ElementFactory.Make("queue", "encQueue");
-        var shadowQueue = Gst.ElementFactory.Make("queue", "shadowQueue");
-        shadowQueue.SetProperty("max-size-time", new Value(unchecked(30 * 1000000000)));
-        shadowQueue.SetProperty("max-size-bytes", new Value(0));
-        shadowQueue.SetProperty("max-size-buffers", new Value(0));
-        shadowQueue.SetProperty("leaky", new Value(2));
-
-        queueSrc = shadowQueue.GetStaticPad("src");
-        
-        blockProbeId = queueSrc.AddProbe(PadProbeType.Blocking, (pad, info) =>
-        {
-            _logger.LogInformation(pad.Name + " Blocked");
-            return PadProbeReturn.Ok;
-        });
-        
-        var videoenc = Gst.ElementFactory.Make("vaapih264enc");
-        var h264parse = Gst.ElementFactory.Make("h264parse");
-        var mux = Gst.ElementFactory.Make("mp4mux", "mux");
-
-        // _pipeline.Add(videosrc, encQueue, videopostproc, videoenc, h264parse, mux, fileSink);
-        _pipeline.Add(videosrc, encQueue, videoenc, h264parse, mux, fileSink);
-
-        _pipeline.Link(videosrc);
-
-        videosrc.Link(encQueue);
-        // videopostproc.Link(encQueue);
-        encQueue.Link(videoenc);
-        
-        
-        
-        
-        videoenc.Link(h264parse);
-        h264parse.Link(mux);
-        mux.Link(fileSink);
-        
-        _pipeline.Bus.AddSignalWatch();
-        _pipeline.Bus.EnableSyncMessageEmission();
-        _pipeline.Bus.Message += OnMessage;
-
-
-        var ret = _pipeline.SetState(State.Playing);
-
-        if (ret == StateChangeReturn.Failure)
-        {
-            _logger.LogCritical("Unable to set the pipeline to the playing state.");
-            IsRecording = false;
-            IsStreaming = false;
-            IsShadowing = false;
-            return false;
-        }
-
-        StartMainLoop();
-        return true;
-    }
 
     public async Task<bool> Start()
     {

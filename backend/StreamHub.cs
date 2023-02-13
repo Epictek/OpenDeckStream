@@ -5,10 +5,12 @@ namespace deckystream;
 public class StreamHub : Hub<IStreamClient>
 {
     private readonly GstreamerService _gstreamerService;
+    private readonly GstreamerServiceShadow _gstreamerServiceShadow;
 
-    public StreamHub(GstreamerService gstreamerService)
+    public StreamHub(GstreamerService gstreamerService, GstreamerServiceShadow gstreamerServiceShadow)
     {
         _gstreamerService = gstreamerService;
+        _gstreamerServiceShadow = gstreamerServiceShadow;
     }
     
     public async Task<bool> StartRecord()
@@ -38,6 +40,24 @@ public class StreamHub : Hub<IStreamClient>
     public async Task<bool> GetStreamingStatus()
     {
         return _gstreamerService.GetIsStreaming();
+    }
+    
+    public Task StartShadow()
+    {
+        _ = _gstreamerServiceShadow.StartPipeline();
+        return Task.CompletedTask;
+    }
+
+    public Task StopShadow()
+    {
+        _ = _gstreamerServiceShadow.StopPipeline();
+        return Task.CompletedTask;
+    }
+
+    public Task SaveShadow()
+    {
+        _ = _gstreamerServiceShadow.StartRecording();
+        return Task.CompletedTask;
     }
     
     public async Task SetConfig(DeckyStreamConfig config)
