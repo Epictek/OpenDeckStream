@@ -6,11 +6,13 @@ public class StreamHub : Hub<IStreamClient>
 {
     private readonly GstreamerService _gstreamerService;
     private readonly GstreamerServiceShadow _gstreamerServiceShadow;
+    private readonly SettingsService _settingsService;
 
-    public StreamHub(GstreamerService gstreamerService, GstreamerServiceShadow gstreamerServiceShadow)
+    public StreamHub(GstreamerService gstreamerService, GstreamerServiceShadow gstreamerServiceShadow, SettingsService settingsService)
     {
         _gstreamerService = gstreamerService;
         _gstreamerServiceShadow = gstreamerServiceShadow;
+        _settingsService = settingsService;
     }
     
     public async Task<bool> StartRecord()
@@ -60,14 +62,14 @@ public class StreamHub : Hub<IStreamClient>
         return Task.CompletedTask;
     }
     
-    public async Task SetConfig(DeckyStreamConfig config)
+    public Task SetConfig(DeckyStreamConfig config)
     {
-        await DeckyStreamConfig.SaveConfig(config);
+        return _settingsService.Save(config);
     }
     
     public async Task<DeckyStreamConfig> GetConfig()
     {
-        return await DeckyStreamConfig.LoadConfig();
+        return _settingsService.Current;
     }
 
     public async Task<bool> ToggleMic(bool enabled)
@@ -80,6 +82,25 @@ public class StreamHub : Hub<IStreamClient>
 
         return false;
     }
+    
+    public async Task ResumeSuspend()
+    {
+        if (_settingsService.Current.ShadowEnabled)
+        {
+            await _gstreamerServiceShadow.StartPipeline();
+        }
+    }
+
+    
+    public async Task Suspend()
+    {
+        if (_settingsService.Current.ShadowEnabled)
+        {
+            await _gstreamerServiceShadow.StopPipeline();
+        }
+    }
+        
+       
 
 }
 

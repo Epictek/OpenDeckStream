@@ -1,25 +1,27 @@
 import {
+    afterPatch,
     ButtonItem,
     definePlugin,
-    PanelSection,
-    PanelSectionRow,
-    ServerAPI,
-    staticClasses,
-    afterPatch,
-    wrapReactType,
-    Tab,
     Dropdown,
     DropdownOption,
-    ToggleField
+    PanelSection,
+    PanelSectionRow,
+    Router,
+    ServerAPI,
+    staticClasses,
+    Tab,
+    ToggleField,
+    wrapReactType
 } from "decky-frontend-lib";
-import {useState, VFC, useEffect} from "react";
+import {useEffect, useState, VFC} from "react";
 import {FaCircle, FaStop, FaVideo, FaVideoSlash} from "react-icons/fa";
 import VideosTab from "./components/VideosTab";
 import VideosTabAddon from "./components/VideosTabAddon";
 
-import {HubConnection, HubConnectionBuilder} from "@microsoft/signalr";
+import {HubConnection, HubConnectionBuilder, HubConnectionState} from "@microsoft/signalr";
 
 interface DeckyStreamConfig {
+    ShadowEnabled: boolean;
     StreamType: "ndi" | "rtmp";
     RtmpEndpoint?: string;
     MicEnabled: boolean;
@@ -49,8 +51,14 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
 
     const options: DropdownOption[] = [{data: "ndi", label: "NDI™"}, {data: "rtmp", label: "RTMP"}];
 
-    var [config, setConfig] = useState({MicEnabled: false, StreamType: "ndi", RtmpEndpoint: undefined} as DeckyStreamConfig);
+    var [config, setConfig] = useState({ShadowEnabled: false, MicEnabled: false, StreamType: "ndi", RtmpEndpoint: undefined} as DeckyStreamConfig);
 
+    useEffect(() => {
+        if (Connection.state == HubConnectionState.Connected) {
+            Connection.invoke("SetConfig", config);
+        }
+    }, [config])
+    
     useEffect(() => {
 
         Connection.invoke("GetRecordingStatus").then((data) => setIsRecording(data));
@@ -123,17 +131,29 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
     }
     
 
-    async function SaveConfig(c: DeckyStreamConfig) {
-        setConfig(c);
-        await Connection.invoke("SetConfig", c);
-    }
 
 
     return (
         <PanelSection title="DeckyStream">
 
             <PanelSectionRow>
+                    <ToggleField
+                        layout="below"
+                        label={"Enabled Shadow"}
+                        checked={config.ShadowEnabled}
+                        onChange={async (checked) => {
+                            if (checked) {
+                                await setConfig({...config, ShadowEnabled: true});
+                                await Connection.invoke("StartShadow");
+                            } else {
+                                await setConfig({...config, ShadowEnabled: false});
+                                await Connection.invoke("StopShadow");
 
+                            }
+                        }
+                        }
+                    >
+                    </ToggleField>
             </PanelSectionRow>
             
             <PanelSectionRow>
@@ -208,13 +228,13 @@ const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({Serve
                   // selectedOption={config.StreamType}
                   selectedOption={options.find(x => (x.data == config.StreamType))}
                   onChange={(x) => {
-                      SaveConfig({...config, StreamType: x.data});
+                      setConfig({...config, StreamType: x.data});
                   }}
               />        
             </PanelSectionRow>
             <PanelSectionRow>
                 <ToggleField disabled={isRecording || isStreaming} checked={config.MicEnabled} onChange={(e) => {
-                    SaveConfig({...config, MicEnabled: e});
+                    setConfig({...config, MicEnabled: e});
                 }
                 } label="Microphone"></ToggleField>
             </PanelSectionRow>
@@ -233,13 +253,52 @@ export default definePlugin((ServerAPI: ServerAPI) => {
 
     connection.start()
 
+
+    async function handleButtonInput(val: any[]) {
+        let isPressed = false;
+
+        for (const inputs of val) {
+
+            // noinspection JSBitwiseOperatorUsage
+            if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
+                if (!isPressed) {
+                    isPressed = true;
+                    await connection.invoke("SaveShadow");
+                        ServerAPI.toaster.toast({
+                            title: "Clip saved",
+                            body: "Tap to view",
+                            icon: <FaVideo/>,
+                            critical: true,
+                            onClick: () => Router.Navigate("/media/tab/videos")
+                        })
+                    
+                }
+            } else if (isPressed) {
+                (Router as any).DisableHomeAndQuickAccessButtons();
+                setTimeout(() => {
+                    (Router as any).EnableHomeAndQuickAccessButtons();
+                }, 1000)
+                isPressed = false;
+            }
+        }
+    }
+
+
+    const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
+    const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(async () => {
+        await connection.invoke("Suspend");
+
+    });
     
+    const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
+        await connection.invoke("ResumeSuspend");
+    });
+
+
     const mediaPatch = ServerAPI.routerHook.addPatch("/media", (route: any) => {
         afterPatch(route.children, "type", (_: any, res: any) => {
-            // logAR(1, args, res);
             wrapReactType(res);
             afterPatch(res.type, "type", (_: any, res: any) => {
-                // logAR(2, args, res);
                 if (res?.props?.children[1]?.props?.tabs && !res?.props?.children[1]?.props?.tabs?.find((tab: Tab) => tab.id == "videos")) res.props.children[1].props.tabs.push({
                     id: "videos",
                     title: "Videos",
@@ -265,6 +324,9 @@ export default definePlugin((ServerAPI: ServerAPI) => {
         content: <Content ServerAPI={ServerAPI} Connection={connection}/>,
         icon: <FaVideo/>,
         onDismount() {
+            inputRegistration.unregister();
+            suspendRequestRegistration.unregister();
+            suspendResumeRegistration.unregister();
             ServerAPI.routerHook.removePatch("/media", mediaPatch);
         },
     };

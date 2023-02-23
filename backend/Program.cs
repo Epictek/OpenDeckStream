@@ -45,7 +45,7 @@ builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.C
 
 
 builder.Services.AddSignalR();
-
+builder.Services.AddSingleton<SettingsService>();
 builder.Services.AddSingleton<GstreamerService>();
 builder.Services.AddSingleton<GstreamerServiceShadow>();
 
@@ -54,6 +54,8 @@ app.UseSerilogRequestLogging();
 
 app.UseCors("CorsPolicy");
 
+var settings = app.Services.GetRequiredService<SettingsService>();
+await settings.Initialise();
 
 
 app.MapHub<StreamHub>("/streamhub");
@@ -82,17 +84,6 @@ app.MapGet("/start-stream", async (GstreamerService gstreamerService) => await g
 
 app.MapGet("/stop", (GstreamerService gstreamerService) => gstreamerService.Stop());
 
-app.MapGet("/config", async () => await DeckyStreamConfig.LoadConfig());
-
-app.MapPost("/config", async (HttpRequest ctx, ILogger<Program> logger) =>
-{
-    using var sr = new StreamReader(ctx.Body);
-    var content = await sr.ReadToEndAsync();
-
-    logger.LogInformation(content);
-    var config = System.Text.Json.JsonSerializer.Deserialize<DeckyStreamConfig>(content, DeckyStreamConfig.JsonSerializerOptions);
-    await DeckyStreamConfig.SaveConfig(config);
-});
 
 app.MapGet("/isRecording", (GstreamerService gstreamerService) => gstreamerService.GetIsRecording());
 app.MapGet("/isStreaming", (GstreamerService gstreamerService) => gstreamerService.GetIsStreaming());
@@ -154,17 +145,5 @@ app.MapGet("/list", () =>
 });
 
 app.MapGet("/list-count", () => Directory.GetFiles(DirectoryHelper.CLIPS_DIR, "*.mp4", SearchOption.AllDirectories).Length);
-
-
-// app.UseFileServer(new FileServerOptions()
-// {
-//     FileProvider = new PhysicalFileProvider(
-//         DirectoryHelper.CLIPS_DIR),
-//     RequestPath = "/Videos",
-//     EnableDirectoryBrowsing = true
-// });
-
-
-
 
 app.Run("http://*:6969");

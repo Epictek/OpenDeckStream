@@ -66,11 +66,13 @@ public class GstreamerService : IDisposable
         }
     }
     private readonly IHubContext<StreamHub, IStreamClient> _streamHubContext;
+    private readonly SettingsService _settingsService;
 
-    public GstreamerService(ILogger<GstreamerService> logger, IHubContext<StreamHub, IStreamClient> streamHubContext)
+    public GstreamerService(ILogger<GstreamerService> logger, IHubContext<StreamHub, IStreamClient> streamHubContext, SettingsService settingsService)
     {
         _logger = logger;
         _streamHubContext = streamHubContext;
+        _settingsService = settingsService;
         try
         {
             Application.Init();
@@ -81,9 +83,6 @@ public class GstreamerService : IDisposable
         }
 
         _mainLoop = new GLib.MainLoop();
-        // _ndiMicLoop = new GLib.MainLoop();
-        
-        // _pipeline = new Pipeline();
     }
 
     public bool GetIsRecording()
@@ -107,7 +106,7 @@ public class GstreamerService : IDisposable
     private ulong blockProbeId;
 
 
-    void AddAudioPipeline(DeckyStreamConfig config, Element outMux)
+    void AddAudioPipeline(Element outMux)
     {
         audioqueue = Gst.ElementFactory.Make("multiqueue", "audioqueue");
         
@@ -137,8 +136,8 @@ public class GstreamerService : IDisposable
         audioEnc.Link(outMux);
 
 
-        _logger.LogInformation("Mic enabled {MicEnabled}", config.MicEnabled);
-        if (config.MicEnabled)
+        _logger.LogInformation("Mic enabled {MicEnabled}", _settingsService.Current.MicEnabled);
+        if (_settingsService.Current.MicEnabled)
         {
             AddMic();
         }
@@ -150,7 +149,6 @@ public class GstreamerService : IDisposable
 
     public async Task<bool> Start()
     {
-        var config = await DeckyStreamConfig.LoadConfig();
         if (IsRecording || IsStreaming) return false;
         await _streamHubContext.Clients.All.GstreamerStateChange(GstreamerState.Starting);
 
@@ -188,7 +186,7 @@ public class GstreamerService : IDisposable
         h264parse.Link(mux);
         mux.Link(sink);
 
-        AddAudioPipeline(config, mux);
+        AddAudioPipeline(mux);
 
         _pipeline.Bus.AddSignalWatch();
         _pipeline.Bus.EnableSyncMessageEmission();
@@ -220,11 +218,6 @@ public class GstreamerService : IDisposable
         _logger.LogInformation("Added element {ElementName} to pipeline", args.Element.Name);
     }
 
-    
-    // void StartNdiMicLoop()
-    // {
-    //     ThreadPool.QueueUserWorkItem(x => _ndiMicLoop.Run());
-    // }
     void StartMainLoop()
     {
         ThreadPool.QueueUserWorkItem(x => _mainLoop.Run());
@@ -235,12 +228,11 @@ public class GstreamerService : IDisposable
         if (IsRecording || IsStreaming) return false;
         IsStreaming = true;
 
-        var config = await DeckyStreamConfig.LoadConfig();
 
         _pipeline = new Pipeline();
-        if (config.StreamingMode == deckystream.StreamType.ndi)
+        if (_settingsService.Current.StreamingMode == deckystream.StreamType.ndi)
         {
-            if (config.MicEnabled || true)
+            if (_settingsService.Current.MicEnabled || true)
             {
                 GenerateNdiMicPipeline();
                 
@@ -258,14 +250,13 @@ public class GstreamerService : IDisposable
                     return false;
                 }
 
-                // StartNdiMicLoop();
             }
             GenerateNdiPipeline();
 
         }
         else
         {
-            if (!config.RtmpEndpoint.StartsWith("rtmp://")) return false;
+            if (_settingsService.Current.RtmpEndpoint != null && !_settingsService.Current.RtmpEndpoint.StartsWith("rtmp://")) return false;
         }
 
 
@@ -342,7 +333,6 @@ public class GstreamerService : IDisposable
         ndisinkcombiner.Link(ndisink);
 
         desktopAudio.Link(ndisinkcombiner);
-        // audioqueue.Link(ndisinkcombiner);
     }
 
 
