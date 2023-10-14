@@ -22,6 +22,7 @@ coverage
 # Dependency directory
 node_modules
 bower_components
+.pnpm-store
 
 # Editors
 .idea
@@ -44,9 +45,19 @@ yalc.lock
 # Ignore output folder
 
 backend/out
-backend/bin
-backend/obj
 
-libs
-bin
-/.pnpm-store
+# Make sure to ignore any instance of the loader's decky_plugin.py
+decky_plugin.py
+
+# Ignore decky CLI for building plugins
+out
+out/*
+cli/
+cli/*
+cli/decky
+
+
+bin/
+obj/
+backend/.run/
+backend/.run/Publish Release.run.xml

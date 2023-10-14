@@ -1,7 +1,7 @@
 {
-  "name": "deckystream",
+  "name": "decky-plugin-template",
   "version": "0.0.1",
-  "description": "Basic plugin to allow recording and streaming from the steamdeck.",
+  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
   "scripts": {
     "build": "shx rm -rf dist && rollup -c",
     "watch": "rollup -c -w",
@@ -14,10 +14,11 @@
   "keywords": [
     "decky",
     "plugin",
+    "plugin-template",
     "steam-deck",
     "deck"
   ],
-  "author": "Kieran Coldron <kieran@coldron.com>",
+  "author": "Jonas Dellinger <jonas@dellinger.dev>",
   "license": "BSD-3-Clause",
   "bugs": {
     "url": "https://github.com/SteamDeckHomebrew/decky-plugin-template/issues"
@@ -38,10 +39,8 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "@microsoft/signalr": "^7.0.2",
-    "decky-frontend-lib": "^3.18.6",
-    "react-icons": "^4.4.0",
-    "rooks": "^7.4.2"
+    "decky-frontend-lib": "^3.21.1",
+    "react-icons": "^4.4.0"
   },
   "pnpm": {
     "peerDependencyRules": {

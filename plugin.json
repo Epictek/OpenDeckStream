@@ -1,10 +1,10 @@
 {
-  "name": "DeckyStream",
+  "name": "DeckStream",
   "author": "Epictek",
-  "flags": ["debug"],
+  "flags": ["debug", "_root"],
   "publish": {
-    "tags": ["recording"],
-    "description": "Basic plugin to allow recording and streaming (via NDI) from the steamdeck.",
+    "tags": ["Recording","streaming", "root"],
+    "description": "Decky plugin for Streaming thanks to OBS",
     "image": "https://opengraph.githubassets.com/1/Epictek/DeckyStream"
   }
 }

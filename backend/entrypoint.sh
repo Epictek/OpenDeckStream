@@ -1,18 +1,13 @@
 #!/bin/sh
 set -e
 
-cd /backend
-mkdir -p /backend/out
+export DOTNET_ROOT=/usr/share/dotnet
+export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
 
-dotnet publish -p:OutputType=exe -c Debug -r linux-x64 -p:PublishSingleFile=true --self-contained true -p:PublishTrimmed=false
-cp -rfv /backend/bin/Release/net6.0/linux-x64/publish/* /backend/out/
-chmod +x /backend/out/deckystream
 
-mkdir -p /backend/out/lib/gstreamer
+cd /backend/src/obs_recorder
 
-cp -rv /usr/lib/libgst* /backend/out/lib/
-cp -rv /usr/lib/gstreamer-1.0/libgst* /backend/out/lib/gstreamer/
+dotnet publish -r linux-x64 -c Release -o /backend/out/
 
-/backend/downloadNdi.sh
-
-/backend/buildGstreamerNdi.sh
+mkdir -p /backend/out/obs
+cp -rfv /obs-portable/* /backend/out/obs/

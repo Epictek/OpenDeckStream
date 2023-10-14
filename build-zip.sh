@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-plugin="deckystream"
+plugin="decky-obs"
 docker_name="backend-${plugin,,}"
 
 dockerfile_exists="false"
