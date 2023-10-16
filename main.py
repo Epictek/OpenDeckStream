@@ -35,6 +35,7 @@ class Plugin:
 
         #env_proc["XAUTHORITY"] = self.find_uuid_file('/run/user/1000/')
         env_proc["DISPLAY"] = ":0"
+        env_proc["XDG_RUNTIME_DIR"] = "/run/user/1000"
 
         self.backend_proc = Popen(
             [decky_plugin.DECKY_PLUGIN_DIR + "/bin/obs_recorder"],

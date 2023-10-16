@@ -40,6 +40,8 @@ builder.Services.AddCors(
 builder.Host.UseSerilog(); 
 
 builder.Services.AddSingleton<IRecordingService, ObsRecordingService>();
+builder.Services.AddSingleton<ConfigService>(new ConfigService(Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR")));
+
 var app = builder.Build();
 app.UseSerilogRequestLogging();
 
@@ -72,6 +74,34 @@ app.MapGet("/saveBuffer", async (IRecordingService recorder) => {
 		return e.Message;
 	}
 	return "Saved replay buffer";
+});
+
+app.MapGet("/config", async (ConfigService configService) => {
+	var config = configService.GetConfig();
+	return config;
+});
+
+app.MapPost("/config", async (ConfigService configService, Config config) => {
+	var newConfig = await configService.SaveConfig(config);
+	return newConfig;
+});
+
+app.MapGet("/startStream", async (IRecordingService recorder) => {
+	try {
+		recorder.StartStreamOutput();
+	} catch (Exception e) {
+		return e.Message;
+	}
+	return "Started stream";
+});
+
+app.MapGet("/stopStream", async (IRecordingService recorder) => {
+	try {
+		recorder.StopStreamOutput();
+	} catch (Exception e) {
+		return e.Message;
+	}
+	return "Stopped stream";
 });
 
 var recorder = app.Services.GetRequiredService<IRecordingService>();

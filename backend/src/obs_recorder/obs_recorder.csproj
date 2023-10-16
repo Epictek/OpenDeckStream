@@ -5,15 +5,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>obs_recorder</RootNamespace>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
-    <!-- <PublishSingleFile>true</PublishSingleFile>-->
-    <PublishAot>true</PublishAot>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- <PublishAot>true</PublishAot> -->
 
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\obs_net\obs_net.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="obs-studio-release\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -57,7 +57,6 @@ cli/*
 cli/decky
 
 
-bin/
-obj/
-backend/.run/
-backend/.run/Publish Release.run.xml
+bin
+obj
+.run
