@@ -1,7 +1,11 @@
 ﻿using System;
 using System.IO;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using obs_recorder;
+
 // using Microsoft.Extensions.Logging;
 using Serilog;
 
@@ -38,14 +42,20 @@ builder.Services.AddCors(
 
 
 builder.Host.UseSerilog(); 
-
+builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddSingleton<IRecordingService, ObsRecordingService>();
-builder.Services.AddSingleton<ConfigService>(new ConfigService(Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR")));
+builder.Services.AddSingleton(x => ActivatorUtilities.CreateInstance<ConfigService>(x, Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") + "/config.json"));
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
+app.UseWebSockets();
+
 
 app.UseCors("CorsPolicy");
+
+app.MapHub<SignalrHub>("/SignalrHub");
+
 
 app.MapGet("/", () => "Hello World!");
 

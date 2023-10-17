@@ -14,7 +14,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
 {
     public void Dispose()
     {
-        StopRecording();    
+        StopRecording();
     }
 
     IntPtr bufferOutput;
@@ -23,31 +23,61 @@ public class ObsRecordingService : IRecordingService, IDisposable
     IntPtr videoEncoder;
     IntPtr audioEncoder;
     IntPtr streamOutput;
+    public EventHandler OnStatusChanged { get; set; }
+    public EventHandler<VolumePeakChangedArg> OnVolumePeakChanged { get; set; }
 
-    bool Initialized = false;
-    bool Recording = false;
+    bool initialised;
+    bool Initialized
+    {
+        get
+        {
+            return initialised;
+        }
+        set
+        {
+            initialised = value;
+            OnStatusChanged?.Invoke(this, null);
+        }
+    }
+
+    bool recording;
+    bool Recording
+    {
+        get
+        {
+            return recording;
+        }
+        set
+        {
+            recording = value;
+            OnStatusChanged?.Invoke(this, null);
+        }
+    }
+
 
     readonly ILogger Logger;
-    
-    public ObsRecordingService(ILogger<ObsRecordingService> logger)
+    readonly ConfigService ConfigService;
+
+    public ObsRecordingService(ILogger<ObsRecordingService> logger, ConfigService configService)
     {
         Logger = logger;
+        ConfigService = configService;
     }
 
     public void Init()
     {
-        // STARTUP
+        //need to change directory so obs can find its plugins (this is a massive hack and I hate it but it works)
         Directory.SetCurrentDirectory(Path.Combine(System.AppContext.BaseDirectory, "obs"));
         Logger.LogError("Current directory: " + Directory.GetCurrentDirectory());
+
         if (obs_initialized())
         {
             throw new Exception("error: obs already initialized");
         }
 
-        //obs_set_nix_platform(obs_nix_platform_type.OBS_NIX_PLATFORM_WAYLAND);
         obs_set_nix_platform(obs_nix_platform_type.OBS_NIX_PLATFORM_X11_EGL);
         obs_set_nix_platform_display(UnixSysCalls.XOpenDisplay(IntPtr.Zero));
-        //obs_set_nix_platform_display(wl_display_connect(IntPtr.Zero));
+
 
         // base_set_log_handler(new log_handler_t((lvl, msg, args, p) =>
         // {
@@ -83,20 +113,13 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         obs_post_load_modules();
         Logger.LogInformation("Loaded modules");
- 
-    //    string id = "";
-    //     int idx = 0;
-    //     while(obs_enum_encoder_types((nuint)idx, ref id))
-    //     {
-    //         Logger.LogWarning($"The encoder type at index {idx} is {id}");
-    //         idx++;
-    //     }
-
 
         InitVideoOut();
         Initialized = true;
-        StartBufferOutput();
-     }
+
+        var config = ConfigService.GetConfig();
+        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0) StartBufferOutput();
+    }
 
     private void ResetVideo()
     {
@@ -143,17 +166,15 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         Recording = false;
     }
-    
-    static DateTime lastSampleTime = DateTime.MinValue;
 
-    static void OnAudioData(IntPtr param, IntPtr source, ref AudioData audioData, bool muted)
+    DateTime lastSampleTime = DateTime.MinValue;
+
+    void OnAudioData(IntPtr param, IntPtr source, ref AudioData audioData, bool muted)
     {
-        // Time since last sample in seconds
         double elapsed = (DateTime.Now - lastSampleTime).TotalSeconds;
-        
-        // If less than a second has passed since the last sample, ignore this sample
-        if (elapsed < 1.0)
-            return;
+        Console.WriteLine($"Elapsed: {elapsed}");
+        if (elapsed < 0.5) return;
+        lastSampleTime = DateTime.Now;
 
         float rms = 0.0f;
 
@@ -169,32 +190,39 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         float db = 20.0f * (float)Math.Log10(rms);  // Convert amplitude to decibels (dB)
 
-    // Map dB level to a percentage
-    float minDb = -60.0f;
-    float maxDb = 0.0f;
-    float percentage = ((db - minDb) / (maxDb - minDb)) * 100.0f;
+        // Map dB level to a percentage
+        float minDb = -60.0f;
+        float maxDb = 0.0f;
+        float percentage = ((db - minDb) / (maxDb - minDb)) * 100.0f;
 
-    percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
+        percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-    Console.WriteLine($"Current audio level: {percentage}%");
+        Console.WriteLine($"Current audio level: {percentage}%");
+        OnVolumePeakChanged?.Invoke(null, new VolumePeakChangedArg() { Peak = percentage, Channel = 0 });
     }
 
 
-    public void InitVideoOut(){
+    public void InitVideoOut()
+    {
+        var config = ConfigService.GetConfig();
+
         IntPtr videoSource = obs_source_create("pipewire-gamescope-capture-source", "Gamescope Capture Source", IntPtr.Zero, IntPtr.Zero);
 
         obs_set_output_source(0, videoSource); //0 = VIDEO CHANNEL
 
 
         IntPtr videoEncoderSettings = obs_data_create();
-        // obs_data_set_bool(videoEncoderSettings, "use_bufsize", true);
-        // obs_data_set_string(videoEncoderSettings, "profile", "high");
-        // obs_data_set_string(videoEncoderSettings, "preset", "veryfast");
-        // obs_data_set_string(videoEncoderSettings, "rate_control", "CRF");
-        // obs_data_set_int(videoEncoderSettings, "crf", 20);
+
+        obs_data_set_int(videoEncoderSettings, "level", 40);
+        obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
+        obs_data_set_int(videoEncoderSettings, "qp", 20);
+        obs_data_set_int(videoEncoderSettings, "maxrate", 0);
+
+
         videoEncoder = obs_video_encoder_create("hevc_ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
         //videoEncoder = obs_video_encoder_create("ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
         // IntPtr videoEncoder = obs_video_encoder_create("obs_x264", "simple_h264_recording", videoEncoderSettings, IntPtr.Zero);
+
         obs_encoder_set_video(videoEncoder, obs_get_video());
         obs_data_release(videoEncoderSettings);
 
@@ -210,20 +238,28 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_encoder_set_audio(audioEncoder, obs_get_audio());
 
 
+        var videoDir = "/home/deck/Videos/DeckyStream/";
+        Directory.CreateDirectory(videoDir);
+
         // SETUP NEW RECORD OUTPUT
         IntPtr recordOutputSettings = obs_data_create();
-        obs_data_set_string(recordOutputSettings, "path", $"/home/deck/Videos/Record-{DateTime.Now.Ticks}.mp4");
+        obs_data_set_string(recordOutputSettings, "path", $"{videoDir}/Record-{DateTime.Now:u}.mp4");
         recordOutput = obs_output_create("ffmpeg_muxer", "simple_ffmpeg_output", recordOutputSettings, IntPtr.Zero);
         obs_data_release(recordOutputSettings);
 
         obs_output_set_video_encoder(recordOutput, videoEncoder);
         obs_output_set_audio_encoder(recordOutput, audioEncoder, (UIntPtr)0);
 
+        var replayDir = "/home/deck/Videos/DeckyStream/Replays/";
+
+        Directory.CreateDirectory(replayDir);
+
         IntPtr bufferOutputSettings = obs_data_create();
-        obs_data_set_string(bufferOutputSettings, "directory", "/home/deck/Videos/");
+        obs_data_set_string(bufferOutputSettings, "directory", replayDir);
         obs_data_set_string(bufferOutputSettings, "format", "%CCYY-%MM-%DD %hh-%mm-%ss");
         obs_data_set_string(bufferOutputSettings, "extension", "mp4");
-        obs_data_set_int(bufferOutputSettings, "max_time_sec", 60);
+        obs_data_set_int(bufferOutputSettings, "duration_sec", 60);
+        // obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
         obs_data_set_int(bufferOutputSettings, "max_size_mb", 500);
         bufferOutput = obs_output_create("replay_buffer", "replay_buffer_output", bufferOutputSettings, IntPtr.Zero);
         obs_data_release(bufferOutputSettings);
@@ -232,9 +268,11 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_output_set_audio_encoder(bufferOutput, audioEncoder, (UIntPtr)0);
     }
 
-    public void StartBufferOutput(){
-        if (!Initialized) {
-            Logger.LogWarning("Not initialized yet, skipping start buffer");    
+    public void StartBufferOutput()
+    {
+        if (!Initialized)
+        {
+            Logger.LogWarning("Not initialized yet, skipping start buffer");
             return;
         }
 
@@ -248,9 +286,11 @@ public class ObsRecordingService : IRecordingService, IDisposable
     }
 
 
-    public void StartStreamOutput(){
-        if (!Initialized) {
-            Logger.LogWarning("Not initialized yet, skipping start stream output");    
+    public void StartStreamOutput()
+    {
+        if (!Initialized)
+        {
+            Logger.LogWarning("Not initialized yet, skipping start stream output");
             return;
         }
 
@@ -258,6 +298,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         IntPtr rtmpOutputSettings = obs_data_create();
         obs_data_set_string(rtmpOutputSettings, "server", "rtmp://lhr08.contribute.live-video.net/app/");
+        obs_data_set_string(rtmpOutputSettings, "key", "live_47002671_72BSNf0DzRm30WCSuXhHDWIaR5EQUw");
         obs_data_set_string(rtmpOutputSettings, "service", "Twitch");
         obs_data_set_bool(rtmpOutputSettings, "use_auth", false);
 
@@ -274,20 +315,23 @@ public class ObsRecordingService : IRecordingService, IDisposable
         Logger.LogInformation("twitch output successful start: " + twitchOutputStartSuccess);
     }
 
-    public void StopStreamOutput() {
+    public void StopStreamOutput()
+    {
         obs_output_stop(streamOutput);
         obs_output_release(streamOutput);
     }
 
     public void StartRecording()
     {
-        if (!Initialized) {
-            Logger.LogWarning("Not initialized yet, skipping start recording");    
+        if (!Initialized)
+        {
+            Logger.LogWarning("Not initialized yet, skipping start recording");
             return;
         }
 
-        if (Recording) {
-            Logger.LogWarning("Already recording, skipping start recording");    
+        if (Recording)
+        {
+            Logger.LogWarning("Already recording, skipping start recording");
             return;
         }
 
@@ -317,8 +361,21 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
     }
 
-    public (bool running, bool recording) GetStatus()
+    public void StopBufferOutput()
     {
-       return (Initialized, Recording); 
+        obs_output_stop(bufferOutput);
     }
+
+    public (bool Running, bool Recording) GetStatus()
+    {
+        return (Initialized, Recording);
+    }
+
+
+}
+
+public class VolumePeakChangedArg : EventArgs
+{
+    public float Peak { get; set; }
+    public int Channel { get; set; }
 }
