@@ -172,7 +172,6 @@ public class ObsRecordingService : IRecordingService, IDisposable
     void OnAudioData(IntPtr param, IntPtr source, ref AudioData audioData, bool muted)
     {
         double elapsed = (DateTime.Now - lastSampleTime).TotalSeconds;
-        Console.WriteLine($"Elapsed: {elapsed}");
         if (elapsed < 0.5) return;
         lastSampleTime = DateTime.Now;
 
@@ -197,7 +196,6 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        Console.WriteLine($"Current audio level: {percentage}%");
         OnVolumePeakChanged?.Invoke(null, new VolumePeakChangedArg() { Peak = percentage, Channel = 0 });
     }
 
@@ -238,7 +236,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_encoder_set_audio(audioEncoder, obs_get_audio());
 
 
-        var videoDir = "/home/deck/Videos/DeckyStream/";
+        var videoDir = "/home/deck/Videos/DeckyStream";
         Directory.CreateDirectory(videoDir);
 
         // SETUP NEW RECORD OUTPUT
@@ -298,7 +296,6 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         IntPtr rtmpOutputSettings = obs_data_create();
         obs_data_set_string(rtmpOutputSettings, "server", "rtmp://lhr08.contribute.live-video.net/app/");
-        obs_data_set_string(rtmpOutputSettings, "key", "live_47002671_72BSNf0DzRm30WCSuXhHDWIaR5EQUw");
         obs_data_set_string(rtmpOutputSettings, "service", "Twitch");
         obs_data_set_bool(rtmpOutputSettings, "use_auth", false);
 

@@ -102,7 +102,7 @@ export default definePlugin((serverApi: ServerAPI) => {
       if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
         if (!isPressed) {
           isPressed = true;
-          connection.invoke("SaveClip").then(() => {
+          connection.invoke("SaveReplayBuffer").then(() => {
             serverApi.toaster.toast({
               title: "Clip saved",
               // body: "Tap to view",

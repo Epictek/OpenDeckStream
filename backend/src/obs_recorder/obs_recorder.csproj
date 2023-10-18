@@ -6,8 +6,9 @@
     <RootNamespace>obs_recorder</RootNamespace>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    
     <!-- <PublishAot>true</PublishAot> -->
-
   </PropertyGroup>
 
   <ItemGroup>

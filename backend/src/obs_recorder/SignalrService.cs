@@ -32,7 +32,6 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 
     void OnVolumePeakChanged(object sender, VolumePeakChangedArg e)
     {
-        Console.WriteLine($"Peak changed: {e.Channel} {e.Peak}");
         _ = Clients.Caller.OnVolumePeakChanged(e.Channel, e.Peak);
     }
 

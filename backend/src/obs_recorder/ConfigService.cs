@@ -13,7 +13,7 @@ public enum MicSetting {
 [JsonSerializable(typeof(Config))]
 public class Config
 {
-    public bool ReplayBufferEnabled { get; set; }
+    public bool ReplayBufferEnabled { get; set; } = true;
     public int ReplayBufferSeconds { get; set; } = 60;
     public MicSetting RecordMic { get; set; }
 }
