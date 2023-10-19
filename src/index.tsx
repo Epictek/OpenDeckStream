@@ -56,9 +56,9 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
   const [bufferEnabled, setBufferEnabled] = useState(false);
 
-  const ToggleBuffer = () => {
-      setBufferEnabled(!bufferEnabled);
-      connection.invoke("BufferOutput", bufferEnabled);
+  const ToggleBuffer = (checked : boolean) => {
+      setBufferEnabled(checked);
+      connection.invoke("BufferOutput", checked);
   }
 
   const SaveConfig = (Config: ConfigType) => {
