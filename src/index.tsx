@@ -28,6 +28,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
   const [Config, SetConfig] = useState({replayBufferSeconds: 60, replayBufferEnabled: true} as ConfigType);
 
   useEffect(() => {
+    console.log("registering");
     const handleVolumePeakChanged = (channel: number, peak: number) => {
       console.log(peak);
       SetPeakVolume(peak);
@@ -36,6 +37,11 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     connection.invoke("GetConfig").then((config : ConfigType) => {
       SetConfig(config);
       setBufferEnabled(config.replayBufferEnabled)
+    });
+
+    connection.invoke("GetStatus").then((status : any) => {
+      console.log("Status:" + status);
+      setIsRecording(status.recording);
     });
 
     connection.on("OnVolumePeakChanged", handleVolumePeakChanged);

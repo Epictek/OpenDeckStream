@@ -34,15 +34,25 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         _ = Clients.Caller.OnVolumePeakChanged(e.Channel, e.Peak);
     }
 
+
     void OnStatusChanged(object sender, EventArgs e)
     {
         var (Running, Recording) = RecordingService.GetStatus();
         _ = Clients.Caller.OnStatusChanged(Running, Recording);
     }
     
+    
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         await base.OnDisconnectedAsync(exception);
+    }
+
+
+    public object GetStatus()
+    {
+        var (Running, Recording) = RecordingService.GetStatus();
+        //todo add types
+        return new {Running, Recording};
     }
 
     public void StartRecording()

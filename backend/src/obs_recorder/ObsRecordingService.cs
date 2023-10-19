@@ -15,6 +15,10 @@ public class ObsRecordingService : IRecordingService, IDisposable
     public void Dispose()
     {
         StopRecording();
+        
+        obs_output_stop(bufferOutput);
+        obs_output_release(bufferOutput);
+
     }
 
     IntPtr bufferOutput;
@@ -36,7 +40,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         set
         {
             initialised = value;
-            OnStatusChanged?.Invoke(this, null);
+            OnStatusChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -50,7 +54,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         set
         {
             recording = value;
-            OnStatusChanged?.Invoke(this, null);
+            OnStatusChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -160,8 +164,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         //obs_output_stop(bufferOutput);
         obs_output_stop(recordOutput);
 
-        //obs_output_release(bufferOutput);
-        //obs_output_release(recordOutput);
+        obs_output_release(recordOutput);
         //todo release all the things
 
         Recording = false;
@@ -236,17 +239,9 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_encoder_set_audio(audioEncoder, obs_get_audio());
 
 
-        var videoDir = "/home/deck/Videos/DeckyStream";
-        Directory.CreateDirectory(videoDir);
 
         // SETUP NEW RECORD OUTPUT
-        IntPtr recordOutputSettings = obs_data_create();
-        obs_data_set_string(recordOutputSettings, "path", $"{videoDir}/Record-{DateTime.Now:u}.mp4");
-        recordOutput = obs_output_create("ffmpeg_muxer", "simple_ffmpeg_output", recordOutputSettings, IntPtr.Zero);
-        obs_data_release(recordOutputSettings);
 
-        obs_output_set_video_encoder(recordOutput, videoEncoder);
-        obs_output_set_audio_encoder(recordOutput, audioEncoder, (UIntPtr)0);
 
         var replayDir = "/home/deck/Videos/DeckyStream/Replays/";
 
@@ -265,6 +260,20 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_output_set_video_encoder(bufferOutput, videoEncoder);
         obs_output_set_audio_encoder(bufferOutput, audioEncoder, (UIntPtr)0);
     }
+
+    public void SetupNewRecordOutput(){
+        var videoDir = "/home/deck/Videos/DeckyStream";
+        Directory.CreateDirectory(videoDir);
+
+        IntPtr recordOutputSettings = obs_data_create();
+        obs_data_set_string(recordOutputSettings, "path", $"{videoDir}/Record-{DateTime.Now:u}.mp4");
+        recordOutput = obs_output_create("ffmpeg_muxer", "simple_ffmpeg_output", recordOutputSettings, IntPtr.Zero);
+        obs_data_release(recordOutputSettings);
+
+        obs_output_set_video_encoder(recordOutput, videoEncoder);
+        obs_output_set_audio_encoder(recordOutput, audioEncoder, (UIntPtr)0);
+
+}
 
     public void StartBufferOutput()
     {
@@ -331,6 +340,9 @@ public class ObsRecordingService : IRecordingService, IDisposable
             Logger.LogWarning("Already recording, skipping start recording");
             return;
         }
+
+
+        SetupNewRecordOutput();
 
         Recording = true;
 

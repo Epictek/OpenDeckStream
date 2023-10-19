@@ -8,6 +8,7 @@ public class Config
 {
     public bool ReplayBufferEnabled { get; set; } = false;
     public int ReplayBufferSeconds { get; set; } = 60;
+    public string Encoder { get; set; } = "obs_x264";
 }
 
 public class ConfigService
