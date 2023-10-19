@@ -68,7 +68,7 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
     public void BufferOutput(bool enabled)
     {
         var config = ConfigService.GetConfig();
-        config.ReplayBufferEnabled = config.ReplayBufferEnabled;
+        config.ReplayBufferEnabled = enabled;
         _ = ConfigService.SaveConfig(config);
         
         if (config.ReplayBufferEnabled)
