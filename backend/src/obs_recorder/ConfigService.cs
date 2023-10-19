@@ -4,18 +4,10 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-public enum MicSetting {
-    Disabled,
-    Mixed,
-    SeparateTrack
-}
-
-[JsonSerializable(typeof(Config))]
 public class Config
 {
-    public bool ReplayBufferEnabled { get; set; } = true;
+    public bool ReplayBufferEnabled { get; set; } = false;
     public int ReplayBufferSeconds { get; set; } = 60;
-    public MicSetting RecordMic { get; set; }
 }
 
 public class ConfigService

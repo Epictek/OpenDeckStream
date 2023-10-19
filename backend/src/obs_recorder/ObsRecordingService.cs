@@ -256,8 +256,8 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_data_set_string(bufferOutputSettings, "directory", replayDir);
         obs_data_set_string(bufferOutputSettings, "format", "%CCYY-%MM-%DD %hh-%mm-%ss");
         obs_data_set_string(bufferOutputSettings, "extension", "mp4");
-        obs_data_set_int(bufferOutputSettings, "duration_sec", 60);
-        // obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
+        //obs_data_set_int(bufferOutputSettings, "duration_sec", 60);
+        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
         obs_data_set_int(bufferOutputSettings, "max_size_mb", 500);
         bufferOutput = obs_output_create("replay_buffer", "replay_buffer_output", bufferOutputSettings, IntPtr.Zero);
         obs_data_release(bufferOutputSettings);

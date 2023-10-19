@@ -1,29 +1,42 @@
 import {
   ButtonItem,
   definePlugin,
+  Dropdown,
   PanelSection,
   PanelSectionRow,
   ProgressBar,
   Router,
   ServerAPI,
-  SliderField,
   staticClasses,
+  ToggleField,
 } from "decky-frontend-lib";
 import { useEffect, useState, VFC } from "react";
 import { FaVideo } from "react-icons/fa";
-import { HubConnection, HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
+import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 
 const serverUrl = "http://localhost:9988"
+
+interface ConfigType {
+  replayBufferEnabled: boolean,
+  replayBufferSeconds: number
+}
 
 const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ serverAPI, connection }) => {
 
   const [PeakVolume, SetPeakVolume] = useState(0);
+
+  const [Config, SetConfig] = useState({replayBufferSeconds: 60, replayBufferEnabled: true} as ConfigType);
 
   useEffect(() => {
     const handleVolumePeakChanged = (channel: number, peak: number) => {
       console.log(peak);
       SetPeakVolume(peak);
     };
+
+    connection.invoke("GetConfig").then((config : ConfigType) => {
+      SetConfig(config);
+      setBufferEnabled(config.replayBufferEnabled)
+    });
 
     connection.on("OnVolumePeakChanged", handleVolumePeakChanged);
 
@@ -33,7 +46,27 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     };
   }, []);
 
-  const [volume, setVolume] = useState(0);
+  // const [volume, setVolume] = useState(0);
+
+  const [bufferEnabled, setBufferEnabled] = useState(false);
+
+  const ToggleBuffer = () => {
+    setBufferEnabled(!bufferEnabled);
+    if (bufferEnabled) {
+      connection.invoke("StartBufferOutput");
+    } else {
+      connection.invoke("StopBufferOutput");
+    }
+  }
+
+  const SaveConfig = (Config: ConfigType) => {
+    connection.invoke("SaveConfig", Config);
+  }
+
+  const ChangeBufferSeconds = (seconds: number) => {
+    SaveConfig({ ...Config, replayBufferSeconds: seconds });
+    SetConfig({ ...Config, replayBufferSeconds: seconds });
+  }
 
   // useEffect(() => {
   //   connection.invoke("SetSpeakerVolume", volume);
@@ -60,6 +93,14 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
   return (
     <PanelSection>
       <PanelSectionRow>
+        <ToggleField layout="below" label={"Replay Buffer"} checked={bufferEnabled} onChange={ToggleBuffer} />
+
+        <Dropdown menuLabel="Replay Length"
+          rgOptions={[{ data: 30, label: "30 seconds" },
+          { data: 60, label: "60 seconds" },
+          { data: 120, label: "120 seconds" }]}
+          selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
+
         <ButtonItem
           layout="below"
           onClick={ToggleRecording}
@@ -69,7 +110,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
       </PanelSectionRow>
 
       <PanelSectionRow>
-        <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField>
+        {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
 
         <div style={{ padding: "5px" }}>
           <ProgressBar nProgress={PeakVolume} nTransitionSec={0}></ProgressBar>
