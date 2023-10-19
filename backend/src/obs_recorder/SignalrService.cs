@@ -14,6 +14,8 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
     {
         ConfigService = configService;
         RecordingService = recordingService;
+        // RecordingService.OnStatusChanged += OnStatusChanged;
+        // RecordingService.OnVolumePeakChanged += OnVolumePeakChanged;
     }
 
     public override async Task OnConnectedAsync()
@@ -22,9 +24,6 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 
         Console.WriteLine("Client connected");
 
-        RecordingService.OnStatusChanged += OnStatusChanged;
-
-        RecordingService.OnVolumePeakChanged += OnVolumePeakChanged;
 
         var (Running, Recording) = RecordingService.GetStatus();
         _ = Clients.Caller.OnStatusChanged(Running, Recording);
@@ -89,11 +88,11 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         return ConfigService.SaveConfig(config);
     }
 
-    public void Dispose()
+    public new void Dispose()
     {
-        RecordingService.OnStatusChanged -= OnStatusChanged;
-
-        RecordingService.OnVolumePeakChanged -= OnVolumePeakChanged;
+        base.Dispose();
+        // RecordingService.OnStatusChanged -= OnStatusChanged;
+        // RecordingService.OnVolumePeakChanged -= OnVolumePeakChanged;
     }
 
 }
