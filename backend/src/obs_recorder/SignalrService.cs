@@ -65,14 +65,18 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         RecordingService.StopRecording();
     }
 
-    public void StartBufferOutput()
+    public void BufferOutput(bool enabled)
     {
-        RecordingService.StartBufferOutput();
-    }
-
-    public void StopBufferOutput()
-    {
-        RecordingService.StopBufferOutput();
+        var config = ConfigService.GetConfig();
+        config.ReplayBufferEnabled = config.ReplayBufferEnabled;
+        _ = ConfigService.SaveConfig(config);
+        
+        if (config.ReplayBufferEnabled)
+        {
+            RecordingService.StartBufferOutput();
+        } else {
+            RecordingService.StopBufferOutput();
+        }
     }
 
     public void SaveReplayBuffer()

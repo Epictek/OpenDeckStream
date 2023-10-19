@@ -220,7 +220,9 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_data_set_int(videoEncoderSettings, "maxrate", 0);
 
 
-        videoEncoder = obs_video_encoder_create("hevc_ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
+        videoEncoder = obs_video_encoder_create(config.Encoder, "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
+
+        // videoEncoder = obs_video_encoder_create("hevc_ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
         //videoEncoder = obs_video_encoder_create("ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
         // IntPtr videoEncoder = obs_video_encoder_create("obs_x264", "simple_h264_recording", videoEncoderSettings, IntPtr.Zero);
 
@@ -266,7 +268,8 @@ public class ObsRecordingService : IRecordingService, IDisposable
         Directory.CreateDirectory(videoDir);
 
         IntPtr recordOutputSettings = obs_data_create();
-        obs_data_set_string(recordOutputSettings, "path", $"{videoDir}/Record-{DateTime.Now:u}.mp4");
+
+        obs_data_set_string(recordOutputSettings, "path", $"{videoDir}/Record-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.mp4");
         recordOutput = obs_output_create("ffmpeg_muxer", "simple_ffmpeg_output", recordOutputSettings, IntPtr.Zero);
         obs_data_release(recordOutputSettings);
 
@@ -281,8 +284,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         {
             Logger.LogWarning("Not initialized yet, skipping start buffer");
             return;
-        }
-
+        }        
 
         bool bufferOutputStartSuccess = obs_output_start(bufferOutput);
         Logger.LogInformation("buffer output successful start: " + bufferOutputStartSuccess);

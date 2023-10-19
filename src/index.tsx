@@ -4,7 +4,7 @@ import {
   Dropdown,
   PanelSection,
   PanelSectionRow,
-  ProgressBar,
+  // ProgressBar,
   Router,
   ServerAPI,
   staticClasses,
@@ -57,12 +57,8 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
   const [bufferEnabled, setBufferEnabled] = useState(false);
 
   const ToggleBuffer = () => {
-    setBufferEnabled(!bufferEnabled);
-    if (bufferEnabled) {
-      connection.invoke("StartBufferOutput");
-    } else {
-      connection.invoke("StopBufferOutput");
-    }
+      setBufferEnabled(!bufferEnabled);
+      connection.invoke("BufferOutput", bufferEnabled);
   }
 
   const SaveConfig = (Config: ConfigType) => {
@@ -85,13 +81,21 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
       connection.invoke("StartRecording").then(() => {
         setIsRecording(true);
       }).catch(() => {
-        setIsRecording(false);
+
       })
     } else {
       connection.invoke("StopRecording").then(() => {
         setIsRecording(false);
+        serverAPI.toaster.toast({
+          title: "Recording saved",
+          // body: "Tap to view",
+          body: "",
+          icon: <FaVideo />,
+          critical: true,
+          //onClick: () => Router.Navigate("/media/tab/videos")
+        })
       }).catch(() => {
-        setIsRecording(true);
+
       })
     }
   }
@@ -118,9 +122,9 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
       <PanelSectionRow>
         {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
 
-        <div style={{ padding: "5px" }}>
+        {/* <div style={{ padding: "5px" }}>
           <ProgressBar nProgress={PeakVolume} nTransitionSec={0}></ProgressBar>
-        </div>
+        </div> */}
       </PanelSectionRow>
     </PanelSection>
   );
