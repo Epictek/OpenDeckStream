@@ -1,4 +1,4 @@
-FROM holo-toolchain-dotnet:latest
+FROM ghcr.io/steamdeckhomebrew/holo-base:latest
 
 RUN pacman -S --noconfirm asio cmake git libfdk-aac libxcomposite x264 vlc swig luajit nlohmann-json python wayland pipewire xdg-desktop-portal ffmpeg git jansson libxinerama libxkbcommon-x11  curl speexdsp pciutils \
     && rm -rf /var/cache/pacman/pkg/*
