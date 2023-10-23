@@ -7,10 +7,10 @@ namespace obs_recorder;
 public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 {
 
-    private readonly IRecordingService RecordingService;
+    private readonly ObsRecordingService RecordingService;
     private readonly ConfigService ConfigService;
 
-    public SignalrHub(IRecordingService recordingService, ConfigService configService)
+    public SignalrHub(ObsRecordingService recordingService, ConfigService configService)
     {
         ConfigService = configService;
         RecordingService = recordingService;
@@ -65,33 +65,31 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         RecordingService.StopRecording();
     }
 
-    public void BufferOutput(bool enabled)
+    public bool BufferOutput(bool enabled)
     {
         var config = ConfigService.GetConfig();
+
+        if (config.ReplayBufferEnabled == enabled) return true;
+
         config.ReplayBufferEnabled = enabled;
         _ = ConfigService.SaveConfig(config);
         
         if (config.ReplayBufferEnabled)
         {
-            RecordingService.StartBufferOutput();
+           return RecordingService.StartBufferOutput();
         } else {
             RecordingService.StopBufferOutput();
+            return true;
         }
     }
 
-    public void SaveReplayBuffer()
-    {
-        _ = RecordingService.SaveReplayBuffer();
+    public void UpdateBufferSettings(){
+        RecordingService.UpdateBufferSettings();
     }
 
-    public void StartStreamOutput()
+    public bool SaveReplayBuffer()
     {
-        RecordingService.StartStreamOutput();
-    }
-
-    public void StopStreamOutput()
-    {
-        RecordingService.StopStreamOutput();
+         return RecordingService.SaveReplayBuffer();
     }
 
     public Config GetConfig(){

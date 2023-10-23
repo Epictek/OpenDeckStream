@@ -10,12 +10,12 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 using System.Runtime.InteropServices;
 using System.Linq;
 
-public class ObsRecordingService : IRecordingService, IDisposable
+public class ObsRecordingService : IDisposable
 {
     public void Dispose()
     {
         StopRecording();
-        
+
         obs_output_stop(bufferOutput);
         obs_output_release(bufferOutput);
 
@@ -66,6 +66,8 @@ public class ObsRecordingService : IRecordingService, IDisposable
     {
         Logger = logger;
         ConfigService = configService;
+
+        ;
     }
 
     public void Init()
@@ -119,6 +121,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         Logger.LogInformation("Loaded modules");
 
         InitVideoOut();
+        InitBufferOutput();
         Initialized = true;
 
         var config = ConfigService.GetConfig();
@@ -203,7 +206,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
     }
 
 
-    public void InitVideoOut()
+    void InitVideoOut()
     {
         var config = ConfigService.GetConfig();
 
@@ -221,10 +224,6 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
 
         videoEncoder = obs_video_encoder_create(config.Encoder, "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
-
-        // videoEncoder = obs_video_encoder_create("hevc_ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
-        //videoEncoder = obs_video_encoder_create("ffmpeg_vaapi", "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
-        // IntPtr videoEncoder = obs_video_encoder_create("obs_x264", "simple_h264_recording", videoEncoderSettings, IntPtr.Zero);
 
         obs_encoder_set_video(videoEncoder, obs_get_video());
         obs_data_release(videoEncoderSettings);
@@ -244,9 +243,13 @@ public class ObsRecordingService : IRecordingService, IDisposable
 
         // SETUP NEW RECORD OUTPUT
 
+    }
 
-        var replayDir = "/home/deck/Videos/DeckyStream/Replays/";
+    void InitBufferOutput()
+    {
+        var config = ConfigService.GetConfig();
 
+        var replayDir = Path.Combine(config.VideoOutputPath, "Replays");
         Directory.CreateDirectory(replayDir);
 
         IntPtr bufferOutputSettings = obs_data_create();
@@ -255,7 +258,7 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_data_set_string(bufferOutputSettings, "extension", "mp4");
         //obs_data_set_int(bufferOutputSettings, "duration_sec", 60);
         obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
-        obs_data_set_int(bufferOutputSettings, "max_size_mb", 500);
+        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)config.ReplayBufferSize);
         bufferOutput = obs_output_create("replay_buffer", "replay_buffer_output", bufferOutputSettings, IntPtr.Zero);
         obs_data_release(bufferOutputSettings);
 
@@ -263,8 +266,20 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_output_set_audio_encoder(bufferOutput, audioEncoder, (UIntPtr)0);
     }
 
-    public void SetupNewRecordOutput(){
-        var videoDir = "/home/deck/Videos/DeckyStream";
+    public void UpdateBufferSettings()
+    {
+        var config = ConfigService.GetConfig();
+        IntPtr bufferOutputSettings = obs_data_create();
+        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
+        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)config.ReplayBufferSize);
+        obs_output_update(bufferOutput, bufferOutputSettings);
+        obs_data_release(bufferOutputSettings);
+    }
+
+    public void SetupNewRecordOutput()
+    {
+        var config = ConfigService.GetConfig();
+        var videoDir = config.VideoOutputPath;
         Directory.CreateDirectory(videoDir);
 
         IntPtr recordOutputSettings = obs_data_create();
@@ -276,105 +291,77 @@ public class ObsRecordingService : IRecordingService, IDisposable
         obs_output_set_video_encoder(recordOutput, videoEncoder);
         obs_output_set_audio_encoder(recordOutput, audioEncoder, (UIntPtr)0);
 
-}
+    }
 
-    public void StartBufferOutput()
+    public bool StartBufferOutput()
     {
         if (!Initialized)
         {
             Logger.LogWarning("Not initialized yet, skipping start buffer");
-            return;
-        }        
+            return false;
+        }
 
         bool bufferOutputStartSuccess = obs_output_start(bufferOutput);
         Logger.LogInformation("buffer output successful start: " + bufferOutputStartSuccess);
-        if (bufferOutputStartSuccess != true)
+        if (!bufferOutputStartSuccess) Logger.LogError("buffer output error: '" + obs_output_get_last_error(bufferOutput) + "'");
+
+        return bufferOutputStartSuccess;
+    }
+
+
+    bool startingRecording = false;
+    public bool StartRecording()
+    {
+        if (startingRecording)
         {
-            Logger.LogError("buffer output error: '" + obs_output_get_last_error(bufferOutput) + "'");
-        }
-    }
-
-
-    public void StartStreamOutput()
-    {
-        if (!Initialized)
-        {
-            Logger.LogWarning("Not initialized yet, skipping start stream output");
-            return;
+            Logger.LogWarning("Already starting recording, skipping start recording");
+            return false;
         }
 
-        // SETUP NEW twitch OUTPUT
-
-        IntPtr rtmpOutputSettings = obs_data_create();
-        obs_data_set_string(rtmpOutputSettings, "server", "rtmp://lhr08.contribute.live-video.net/app/");
-        obs_data_set_string(rtmpOutputSettings, "service", "Twitch");
-        obs_data_set_bool(rtmpOutputSettings, "use_auth", false);
-
-
-        streamOutput = obs_output_create("rtmp_output", "simple_rtmp_output", rtmpOutputSettings, IntPtr.Zero);
-        obs_data_release(rtmpOutputSettings);
-
-        obs_output_set_video_encoder(streamOutput, videoEncoder);
-
-        obs_output_set_audio_encoder(streamOutput, audioEncoder, (UIntPtr)0);
-
-        bool twitchOutputStartSuccess = obs_output_start(streamOutput);
-
-        Logger.LogInformation("twitch output successful start: " + twitchOutputStartSuccess);
-    }
-
-    public void StopStreamOutput()
-    {
-        obs_output_stop(streamOutput);
-        obs_output_release(streamOutput);
-    }
-
-    public void StartRecording()
-    {
         if (!Initialized)
         {
             Logger.LogWarning("Not initialized yet, skipping start recording");
-            return;
+            return false;
         }
 
         if (Recording)
         {
             Logger.LogWarning("Already recording, skipping start recording");
-            return;
+            return false;
         }
 
+        startingRecording = true;
 
         SetupNewRecordOutput();
 
-        Recording = true;
-
         Logger.LogInformation("Starting recording");
-
 
         // START RECORD OUTPUT
         bool recordOutputStartSuccess = obs_output_start(recordOutput);
         Logger.LogInformation("record output successful start: " + recordOutputStartSuccess);
-        if (recordOutputStartSuccess != true)
-        {
-            Logger.LogError("record output error: '" + obs_output_get_last_error(recordOutput) + "'");
-        }
+        if (!recordOutputStartSuccess) Logger.LogError("record output error: '" + obs_output_get_last_error(recordOutput) + "'");
+        Recording = recordOutputStartSuccess;
+        startingRecording = false;
 
-        return;
+        return recordOutputStartSuccess;
     }
 
-    public Task SaveReplayBuffer()
+    public bool SaveReplayBuffer()
     {
         calldata_t cd = new();
         var ph = obs_output_get_proc_handler(bufferOutput);
-        Logger.LogInformation("buffer output successful save: " + proc_handler_call(ph, "save", cd));
+        var successful = proc_handler_call(ph, "save", cd);
+        Logger.LogInformation("buffer output successful save: {successful}", successful);
         calldata_free(cd);
-        return Task.CompletedTask;
 
+        return successful;
     }
 
     public void StopBufferOutput()
     {
+        var config = ConfigService.GetConfig();
         obs_output_stop(bufferOutput);
+        obs_output_release(bufferOutput);
     }
 
     public (bool Running, bool Recording) GetStatus()

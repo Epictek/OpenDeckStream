@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,9 +7,11 @@ using Microsoft.Extensions.Logging;
 
 public class Config
 {
+    public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "DeckyStream");
     public bool ReplayBufferEnabled { get; set; } = false;
     public int ReplayBufferSeconds { get; set; } = 60;
     public string Encoder { get; set; } = "ffmpeg_vaapi";
+    public int ReplayBufferSize { get; set; } = 500;
 }
 
 public class ConfigService

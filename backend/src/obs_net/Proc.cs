@@ -20,5 +20,10 @@ namespace obs_net {
         [DllImport(importLibrary, CallingConvention = importCall, CharSet = importCharSet)]
         [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool calldata_get_string(calldata_t data, string name, out string str);
+
+        public static void calldata_free(calldata_t data){
+                bfree(data.stack);
+                data.stack = IntPtr.Zero;
+        }
     }
 }

@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace obs_net {
+namespace obs_net
+{
     using audio_t = IntPtr;
     using obs_source_t = IntPtr;
     using profiler_name_store_t = IntPtr;
     using video_t = IntPtr;
-    public partial class Obs {
-        public const string importLibrary = @"bin/64bit/libobs.so";  //extension is handled automatically
+    public partial class Obs
+    {
+        public const string importLibrary = @"libobs.so";
         public const CallingConvention importCall = CallingConvention.Cdecl;
         public const CharSet importCharSet = CharSet.Ansi;
 
@@ -19,7 +21,8 @@ namespace obs_net {
         /// <param name="module_config_path">Path to module config storage directory (or NULL if none)</param>
         /// <param name="store">The profiler name store for OBS to use or NULL</param>
         /// <returns>false if already initialized or failed to initialize</returns>
-        public static bool obs_startup(string locale, string module_config_path, profiler_name_store_t store) {
+        public static bool obs_startup(string locale, string module_config_path, profiler_name_store_t store)
+        {
             //Directory.SetCurrentDirectory(@"C:\Program Files\obs-studio\bin\64bit\");
             return obs_startup_call(locale, module_config_path, store);
         }
@@ -97,7 +100,8 @@ namespace obs_net {
         public static extern void obs_post_load_modules();
 
         [StructLayout(LayoutKind.Sequential, CharSet = importCharSet)]
-        public struct obs_video_info {
+        public struct obs_video_info
+        {
             public string graphics_module; //Marshal.PtrToStringAnsi
 
             public uint fps_num;       //Output FPS numerator
@@ -124,7 +128,8 @@ namespace obs_net {
             public obs_scale_type scale_type;    //How to scale if scaling
         };
 
-        public enum obs_scale_type : int {
+        public enum obs_scale_type : int
+        {
             OBS_SCALE_DISABLE,
             OBS_SCALE_POINT,
             OBS_SCALE_BICUBIC,
@@ -133,15 +138,28 @@ namespace obs_net {
         };
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct obs_audio_info {
+        public struct obs_audio_info
+        {
             public uint samples_per_sec;
             public speaker_layout speakers;
         };
 
-        private const int MAX_AV_PLANES = 8;
+        public const int MAX_AV_PLANES = 8;
+
 
         [StructLayout(LayoutKind.Sequential)]
-        public unsafe struct resample_info {
+        public struct AudioData
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_AV_PLANES)]
+            public IntPtr[] data;
+            public uint frames;
+            public ulong timestamp;
+        }
+
+
+        [StructLayout(LayoutKind.Sequential)]
+        public unsafe struct resample_info
+        {
             private uint samples_per_sec;
             private audio_format format;
             private speaker_layout speakers;
@@ -152,7 +170,8 @@ namespace obs_net {
         public delegate bool audio_input_callback_t(obs_source_t param, uint start_ts, uint end_ts, out uint new_ts, uint active_mixers, uint mixes);
 
         [StructLayout(LayoutKind.Sequential)]
-        public unsafe struct audio_output_info {
+        public unsafe struct audio_output_info
+        {
             public string name;
 
             public uint samples_per_sec;
@@ -162,7 +181,8 @@ namespace obs_net {
             public void* input_param;
         };
 
-        public enum video_format : int {
+        public enum video_format : int
+        {
             VIDEO_FORMAT_NONE,
 
             /* planar 4:2:0 formats */
@@ -215,7 +235,8 @@ namespace obs_net {
             VIDEO_FORMAT_YA2L, // Little Endian
         };
 
-        public enum audio_format : int {
+        public enum audio_format : int
+        {
             AUDIO_FORMAT_UNKNOWN,
 
             AUDIO_FORMAT_U8BIT,
@@ -229,7 +250,8 @@ namespace obs_net {
             AUDIO_FORMAT_FLOAT_PLANAR,
         };
 
-        public enum speaker_layout : int {
+        public enum speaker_layout : int
+        {
             SPEAKERS_UNKNOWN,
             SPEAKERS_MONO,
             SPEAKERS_STEREO,
@@ -243,7 +265,8 @@ namespace obs_net {
             SPEAKERS_SURROUND,
         };
 
-        public enum video_colorspace : int {
+        public enum video_colorspace : int
+        {
             VIDEO_CS_DEFAULT,
             VIDEO_CS_601,
             VIDEO_CS_709,
@@ -252,7 +275,8 @@ namespace obs_net {
             VIDEO_CS_2100_HLG,
         };
 
-        public enum video_range_type : int {
+        public enum video_range_type : int
+        {
             VIDEO_RANGE_DEFAULT,
             VIDEO_RANGE_PARTIAL,
             VIDEO_RANGE_FULL
@@ -283,7 +307,8 @@ namespace obs_net {
         public static extern float obs_source_get_volume(obs_source_t source);
 
 
-        public enum VideoResetError {
+        public enum VideoResetError
+        {
             OBS_VIDEO_SUCCESS = 0,
             OBS_VIDEO_FAIL = -1,
             OBS_VIDEO_NOT_SUPPORTED = -2,

@@ -14,7 +14,6 @@ import { useEffect, useState, VFC } from "react";
 import { FaVideo } from "react-icons/fa";
 import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 
-const serverUrl = "http://localhost:9988"
 
 interface ConfigType {
   replayBufferEnabled: boolean,
@@ -36,7 +35,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
     connection.invoke("GetConfig").then((config : ConfigType) => {
       SetConfig(config);
-      setBufferEnabled(config.replayBufferEnabled)
+      // setBufferEnabled(config.replayBufferEnabled)
     });
 
     connection.invoke("GetStatus").then((status : any) => {
@@ -54,20 +53,25 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
   // const [volume, setVolume] = useState(0);
 
-  const [bufferEnabled, setBufferEnabled] = useState(false);
+  // const [bufferEnabled, setBufferEnabled] = useState(false);
 
   const ToggleBuffer = (checked : boolean) => {
-      setBufferEnabled(checked);
+      SaveConfig({ ...Config, replayBufferEnabled: checked });
+
+      // setBufferEnabled(checked);
       connection.invoke("BufferOutput", checked);
   }
 
   const SaveConfig = (Config: ConfigType) => {
     connection.invoke("SaveConfig", Config);
+    SetConfig(Config);
   }
 
-  const ChangeBufferSeconds = (seconds: number) => {
-    SaveConfig({ ...Config, replayBufferSeconds: seconds });
-    SetConfig({ ...Config, replayBufferSeconds: seconds });
+  const ChangeBufferSeconds = async (seconds: number) => {
+    await SaveConfig({ ...Config, replayBufferSeconds: seconds });
+
+    await connection.invoke("UpdateBufferSettings");
+
   }
 
   // useEffect(() => {
@@ -103,7 +107,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
   return (
     <PanelSection>
       <PanelSectionRow>
-        <ToggleField layout="below" label={"Replay Buffer"} checked={bufferEnabled} onChange={ToggleBuffer} />
+        <ToggleField layout="below" label={"Replay Buffer"} checked={Config.replayBufferEnabled} onChange={ToggleBuffer} />
 
         <Dropdown menuLabel="Replay Length"
           rgOptions={[{ data: 30, label: "30 seconds" },
@@ -144,15 +148,17 @@ export default definePlugin((serverApi: ServerAPI) => {
     console.error(err.toString());
   });
 
+  let isPressed = false;
 
   async function handleButtonInput(val: any[]) {
-    let isPressed = false;
-
     for (const inputs of val) {
       // noinspection JSBitwiseOperatorUsage
       if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
         if (!isPressed) {
           isPressed = true;
+          var config = await connection.invoke("GetConfig");
+          if (!config.replayBufferEnabled) continue;
+
           connection.invoke("SaveReplayBuffer").then(() => {
             serverApi.toaster.toast({
               title: "Clip saved",
@@ -184,11 +190,11 @@ export default definePlugin((serverApi: ServerAPI) => {
 
   const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
   const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(async () => {
-    fetch(serverUrl + "/pause")
+    //todo: implement
   });
 
   const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
-    fetch(serverUrl + "/resume")
+    //todo: implement
   });
 
 
@@ -198,10 +204,10 @@ export default definePlugin((serverApi: ServerAPI) => {
     content: <Content serverAPI={serverApi} connection={connection} />,
     icon: <FaVideo />,
     onDismount() {
-      connection.stop();
       inputRegistration.unregister();
       suspendRequestRegistration.unregister();
       suspendResumeRegistration.unregister();
+      connection.stop();
     },
   };
 });

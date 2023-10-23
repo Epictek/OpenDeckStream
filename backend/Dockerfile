@@ -1,4 +1,10 @@
-FROM ghcr.io/steamdeckhomebrew/holo-base:latest
+FROM holo-toolchain-dotnet:latest
+
+RUN pacman -Sy --noconfirm wget zlib clang && \
+    wget https://dot.net/v1/dotnet-install.sh && \
+    chmod +x dotnet-install.sh && \
+    ./dotnet-install.sh --install-dir /usr/share/dotnet -channel 8.0 && \
+    rm dotnet-install.sh
 
 RUN pacman -S --noconfirm asio cmake git libfdk-aac libxcomposite x264 vlc swig luajit nlohmann-json python wayland pipewire xdg-desktop-portal ffmpeg git jansson libxinerama libxkbcommon-x11  curl speexdsp pciutils \
     && rm -rf /var/cache/pacman/pkg/*

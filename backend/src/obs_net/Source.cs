@@ -73,5 +73,18 @@ namespace obs_net {
         [DllImport(importLibrary, CallingConvention = importCall, CharSet = importCharSet)]
         public static extern obs_data_t obs_get_source_defaults(
             [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8StringMarshaler))] string id);
+
+        [DllImport(importLibrary, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void obs_source_add_audio_capture_callback(IntPtr source, 
+                                                                        AudioCapturedDelegate callback, 
+                                                                        IntPtr param);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void AudioCapturedDelegate(IntPtr param, IntPtr source, 
+                                                ref AudioData audioData, bool muted);
+
+
+
+
     }
 }

@@ -43,7 +43,7 @@ builder.Services.AddCors(
 
 builder.Host.UseSerilog(); 
 builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
-builder.Services.AddSingleton<IRecordingService, ObsRecordingService>();
+builder.Services.AddSingleton<ObsRecordingService>();
 builder.Services.AddSingleton(x => ActivatorUtilities.CreateInstance<ConfigService>(x, Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") + "/config.json"));
 builder.Services.AddSignalR();
 
@@ -59,62 +59,7 @@ app.MapHub<SignalrHub>("/SignalrHub");
 
 app.MapGet("/", () => "Hello World!");
 
-app.MapGet("/start", async (IRecordingService recorder) => {
-	try {
-	  recorder.StartRecording();
-	} catch (Exception e) {
-		return e.Message;
-	}
-	return "Started recording";
-});
-
-app.MapGet("/stop", async (IRecordingService recorder) => {
-	try {
-	 recorder.StopRecording();
-	} catch (Exception e) {
-		return e.Message;
-	}
-	return "Stopped recording";
-});
-
-app.MapGet("/saveBuffer", async (IRecordingService recorder) => {
-	try {
-		await recorder.SaveReplayBuffer();
-	} catch (Exception e) {
-		return e.Message;
-	}
-	return "Saved replay buffer";
-});
-
-app.MapGet("/config", async (ConfigService configService) => {
-	var config = configService.GetConfig();
-	return config;
-});
-
-app.MapPost("/config", async (ConfigService configService, Config config) => {
-	var newConfig = await configService.SaveConfig(config);
-	return newConfig;
-});
-
-app.MapGet("/startStream", async (IRecordingService recorder) => {
-	try {
-		recorder.StartStreamOutput();
-	} catch (Exception e) {
-		return e.Message;
-	}
-	return "Started stream";
-});
-
-app.MapGet("/stopStream", async (IRecordingService recorder) => {
-	try {
-		recorder.StopStreamOutput();
-	} catch (Exception e) {
-		return e.Message;
-	}
-	return "Stopped stream";
-});
-
-var recorder = app.Services.GetRequiredService<IRecordingService>();
+var recorder = app.Services.GetRequiredService<ObsRecordingService>();
 recorder.Init();
 
 
