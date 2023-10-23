@@ -1,10 +1,10 @@
 {
-  "name": "DeckyStream",
+  "name": "OpenDeckStream",
   "author": "Epictek",
   "flags": ["debug", "_root"],
   "publish": {
     "tags": ["root"],
     "description": "Streaming and record plugin.",
-    "image": "https://opengraph.githubassets.com/1/Epictek/DeckyStream"
+    "image": "https://opengraph.githubassets.com/1/Epictek/OpenDeckStream"
   }
 }

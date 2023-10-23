@@ -142,7 +142,7 @@ export default definePlugin((serverApi: ServerAPI) => {
     .build();
 
   connection.start().then(() => {
-    console.log("Connected to DeckyStream backend");
+    console.log("Connected to ODS backend");
     console.log(connection.invoke("GetConfig"));
   }).catch((err) => {
     console.error(err.toString());
@@ -200,7 +200,7 @@ export default definePlugin((serverApi: ServerAPI) => {
 
 
   return {
-    title: <div className={staticClasses.Title}>DeckyStream</div>,
+    title: <div className={staticClasses.Title}>OpenDeckStream</div>,
     content: <Content serverAPI={serverApi} connection={connection} />,
     icon: <FaVideo />,
     onDismount() {

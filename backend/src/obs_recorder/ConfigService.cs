@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 public class Config
 {
-    public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "DeckyStream");
+    public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "ods");
     public bool ReplayBufferEnabled { get; set; } = false;
     public int ReplayBufferSeconds { get; set; } = 60;
     public string Encoder { get; set; } = "ffmpeg_vaapi";
