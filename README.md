@@ -1,7 +1,5 @@
 # OpenDeckStream
 
-![OpenDeckStream banner](banner.png)
-
 OpenDeckStream is a Decky plugin specially designed for the SteamDeck. Utilizing `libobs` for recording, OpenDeckStream aims to provide you with an exceptional experience of recording your SteamDeck gameplay with a seamless, integrated, and easy-to-use interface.
 
 In the future, we plan on implementing streaming capabilities to bring live casts of your gameplay directly from your SteamDeck to your favorite platforms.
