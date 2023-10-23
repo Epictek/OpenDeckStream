@@ -1,5 +1,5 @@
 {
-  "name": "decky-plugin-template",
+  "name": "OpenDeckStream",
   "version": "0.0.1",
   "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
   "scripts": {
@@ -21,9 +21,9 @@
   "author": "Jonas Dellinger <jonas@dellinger.dev>",
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/SteamDeckHomebrew/decky-plugin-template/issues"
+    "url": "https://github.com/epictek/OpenDeckStream/issues"
   },
-  "homepage": "https://github.com/SteamDeckHomebrew/decky-plugin-template#readme",
+  "homepage": "https://github.com/epictek/OpenDeckStream#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.1.0",
     "@rollup/plugin-json": "^4.1.0",
