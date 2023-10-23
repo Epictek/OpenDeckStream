@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SteamDeckHomebrew/decky-plugin-template.git"
+    "url": "git+https://github.com/epictek/OpenDeckStream"
   },
   "keywords": [
     "decky",
@@ -18,8 +18,8 @@
     "steam-deck",
     "deck"
   ],
-  "author": "Jonas Dellinger <jonas@dellinger.dev>",
-  "license": "BSD-3-Clause",
+  "author": "Kieran Coldron <kieran@coldron.com>",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/epictek/OpenDeckStream/issues"
   },
