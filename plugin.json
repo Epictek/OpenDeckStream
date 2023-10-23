@@ -1,10 +1,10 @@
 {
-  "name": "DeckyStream",
+  "name": "OpenDeckStream",
   "author": "Epictek",
-  "flags": ["debug"],
+  "flags": ["debug", "_root"],
   "publish": {
-    "tags": ["recording"],
-    "description": "Basic plugin to allow recording and streaming (via NDI) from the steamdeck.",
-    "image": "https://opengraph.githubassets.com/1/Epictek/DeckyStream"
+    "tags": ["root"],
+    "description": "Streaming and record plugin.",
+    "image": "https://opengraph.githubassets.com/1/Epictek/OpenDeckStream"
   }
 }

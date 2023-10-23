@@ -1,333 +1,213 @@
 import {
-    afterPatch,
-    ButtonItem,
-    definePlugin,
-    Dropdown,
-    DropdownOption,
-    PanelSection,
-    PanelSectionRow,
-    Router,
-    ServerAPI,
-    staticClasses,
-    Tab,
-    ToggleField,
-    wrapReactType
+  ButtonItem,
+  definePlugin,
+  Dropdown,
+  PanelSection,
+  PanelSectionRow,
+  // ProgressBar,
+  Router,
+  ServerAPI,
+  staticClasses,
+  ToggleField,
 } from "decky-frontend-lib";
-import {useEffect, useState, VFC} from "react";
-import {FaCircle, FaStop, FaVideo, FaVideoSlash} from "react-icons/fa";
-import VideosTab from "./components/VideosTab";
-import VideosTabAddon from "./components/VideosTabAddon";
+import { useEffect, useState, VFC } from "react";
+import { FaVideo } from "react-icons/fa";
+import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 
-import {HubConnection, HubConnectionBuilder, HubConnectionState} from "@microsoft/signalr";
 
-interface DeckyStreamConfig {
-    ShadowEnabled: boolean;
-    StreamType: "ndi" | "rtmp";
-    RtmpEndpoint?: string;
-    MicEnabled: boolean;
+interface ConfigType {
+  replayBufferEnabled: boolean,
+  replayBufferSeconds: number
 }
 
+const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ serverAPI, connection }) => {
 
-const Content: VFC<{ ServerAPI: ServerAPI, Connection: HubConnection}> = ({ServerAPI, Connection}) => {
+  const [PeakVolume, SetPeakVolume] = useState(0);
 
-    Connection.on("StreamingStatusChange", (status) => {
-        console.log("StreamingStatusChange", status);
-        setIsStreaming(status);
-    })
+  const [Config, SetConfig] = useState({replayBufferSeconds: 60, replayBufferEnabled: true} as ConfigType);
 
-    Connection.on("RecordingStatusChange", (status) => {
-        console.log("RecordingStatusChange", status)
-        setIsRecording(status);
-    })
-    
-    Connection.on("GstreamerStateChange", (state, reason) => {
-        console.log(state, reason)
-    })
+  useEffect(() => {
+    console.log("registering");
+    const handleVolumePeakChanged = (channel: number, peak: number) => {
+      console.log(peak);
+      SetPeakVolume(peak);
+    };
 
-    
-    const [isRecording, setIsRecording] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
+    connection.invoke("GetConfig").then((config : ConfigType) => {
+      SetConfig(config);
+      // setBufferEnabled(config.replayBufferEnabled)
+    });
 
+    connection.invoke("GetStatus").then((status : any) => {
+      console.log("Status:" + status);
+      setIsRecording(status.recording);
+    });
 
-    const options: DropdownOption[] = [{data: "ndi", label: "NDI™"}, {data: "rtmp", label: "RTMP"}];
+    connection.on("OnVolumePeakChanged", handleVolumePeakChanged);
 
-    var [config, setConfig] = useState({ShadowEnabled: false, MicEnabled: false, StreamType: "ndi", RtmpEndpoint: undefined} as DeckyStreamConfig);
+    return () => {
+      console.log("unregistering");
+      connection.off("OnVolumePeakChanged", handleVolumePeakChanged);
+    };
+  }, []);
 
-    useEffect(() => {
-        if (Connection.state == HubConnectionState.Connected) {
-            Connection.invoke("SetConfig", config);
-        }
-    }, [config])
-    
-    useEffect(() => {
+  // const [volume, setVolume] = useState(0);
 
-        Connection.invoke("GetRecordingStatus").then((data) => setIsRecording(data));
-        Connection.invoke("GetStreamingStatus").then((data) => setIsStreaming(data));
+  // const [bufferEnabled, setBufferEnabled] = useState(false);
 
-        Connection.invoke("GetConfig").then((data) => {
-            setConfig(data);
-        });
-    }, []);
+  const ToggleBuffer = (checked : boolean) => {
+      SaveConfig({ ...Config, replayBufferEnabled: checked });
 
-    async function StopRecord() {
-        var resp = await Connection.invoke("StopStream");
-        if (resp) {
-            ServerAPI.toaster.toast({
-                title: "Stopping Recording",
-                body: "Recording has stopped",
-                showToast: true
-            });
-        }
+      // setBufferEnabled(checked);
+      connection.invoke("BufferOutput", checked);
+  }
+
+  const SaveConfig = (Config: ConfigType) => {
+    connection.invoke("SaveConfig", Config);
+    SetConfig(Config);
+  }
+
+  const ChangeBufferSeconds = async (seconds: number) => {
+    await SaveConfig({ ...Config, replayBufferSeconds: seconds });
+
+    await connection.invoke("UpdateBufferSettings");
+
+  }
+
+  // useEffect(() => {
+  //   connection.invoke("SetSpeakerVolume", volume);
+  // }, [volume])
+
+  const [isRecording, setIsRecording] = useState(false);
+
+  const ToggleRecording = () => {
+    if (!isRecording) {
+      connection.invoke("StartRecording").then(() => {
+        setIsRecording(true);
+      }).catch(() => {
+
+      })
+    } else {
+      connection.invoke("StopRecording").then(() => {
+        setIsRecording(false);
+        serverAPI.toaster.toast({
+          title: "Recording saved",
+          // body: "Tap to view",
+          body: "",
+          icon: <FaVideo />,
+          critical: true,
+          //onClick: () => Router.Navigate("/media/tab/videos")
+        })
+      }).catch(() => {
+
+      })
     }
+  }
 
-    async function StartRecord()  {
-        var resp = await Connection.invoke("StartRecord");
-        if (resp) {
-            ServerAPI.toaster.toast({
-                title: "Started Recording",
-                body: "Recording has started",
-                showToast: true
-            });
-        } else {
-            ServerAPI.toaster.toast({
-                title: "Recording failed to start",
-                body: "Check logs",
-                critical: true,
-                showToast: true
-            });
+  return (
+    <PanelSection>
+      <PanelSectionRow>
+        <ToggleField layout="below" label={"Replay Buffer"} checked={Config.replayBufferEnabled} onChange={ToggleBuffer} />
 
-        }
-    }
+        <Dropdown menuLabel="Replay Length"
+          rgOptions={[{ data: 30, label: "30 seconds" },
+          { data: 60, label: "60 seconds" },
+          { data: 120, label: "120 seconds" }]}
+          selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
 
-    async function StopStreaming() {
-        var resp = await Connection.invoke("StopStream");
+        <ButtonItem
+          layout="below"
+          onClick={ToggleRecording}
+        >
+          {isRecording ? "Stop Recording" : "Start Recording"}
+        </ButtonItem>
+      </PanelSectionRow>
 
-        if (resp) {
-            ServerAPI.toaster.toast({
-                title: "Stopping stream",
-                body: "Stream has ended",
-                showToast: true
-            });
-        }
-    }
+      <PanelSectionRow>
+        {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
 
-    async function StartStreaming() {
-        var resp = await Connection.invoke("StartStream");
-
-        if (resp) {
-            ServerAPI.toaster.toast({
-                title: "Started Stream",
-                body: "Stream has started",
-                showToast: true
-            });
-        } else {
-            ServerAPI.toaster.toast({
-                title: "Stream failed to start",
-                body: "Check logs",
-                critical: true,
-                showToast: true
-            });
-        }
-    }
-    
-
-
-
-    return (
-        <PanelSection title="DeckyStream">
-
-            <PanelSectionRow>
-                    <ToggleField
-                        layout="below"
-                        label={"Enabled Shadow"}
-                        checked={config.ShadowEnabled}
-                        onChange={async (checked) => {
-                            if (checked) {
-                                await setConfig({...config, ShadowEnabled: true});
-                                await Connection.invoke("StartShadow");
-                            } else {
-                                await setConfig({...config, ShadowEnabled: false});
-                                await Connection.invoke("StopShadow");
-
-                            }
-                        }
-                        }
-                    >
-                    </ToggleField>
-            </PanelSectionRow>
-            
-            <PanelSectionRow>
-                {!isRecording ?
-                    <ButtonItem
-                        disabled={isStreaming}
-                        layout="below"
-                        onClick={async () => {
-                            await StartRecord();
-                        }
-                        }
-                    >
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <FaCircle/>
-                            <div>Start Recording</div>
-                        </div>
-                    </ButtonItem>
-                    :
-                    <ButtonItem
-                        layout="below"
-                        onClick={async () => {
-                            await StopRecord();
-                        }
-                        }
-                    >
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-
-                            <FaStop/>
-                            <div>Stop Recording</div>
-                        </div>
-
-                    </ButtonItem>
-                }
-            </PanelSectionRow>
-
-            <PanelSectionRow>
-              {!isStreaming ? 
-              <ButtonItem
-              disabled={isRecording}
-                layout="below"
-                onClick={() => {
-                  StartStreaming();
-                }
-                }
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <FaVideo/>
-                  <div>Start Streaming</div>
-                </div>
-              </ButtonItem>
-              : 
-              <ButtonItem
-                layout="below"
-                onClick={() => {
-                  StopStreaming();
-                }
-                }
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <FaVideoSlash/>
-                  <div>Stop Streaming</div>
-                </div>
-
-
-              </ButtonItem>
-              }
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <Dropdown
-                  strDefaultLabel="Select Stream Target"
-                  rgOptions={options}
-                  // selectedOption={config.StreamType}
-                  selectedOption={options.find(x => (x.data == config.StreamType))}
-                  onChange={(x) => {
-                      setConfig({...config, StreamType: x.data});
-                  }}
-              />        
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <ToggleField disabled={isRecording || isStreaming} checked={config.MicEnabled} onChange={(e) => {
-                    setConfig({...config, MicEnabled: e});
-                }
-                } label="Microphone"></ToggleField>
-            </PanelSectionRow>
-
-        </PanelSection>
-    );
+        {/* <div style={{ padding: "5px" }}>
+          <ProgressBar nProgress={PeakVolume} nTransitionSec={0}></ProgressBar>
+        </div> */}
+      </PanelSectionRow>
+    </PanelSection>
+  );
 };
 
+export default definePlugin((serverApi: ServerAPI) => {
 
-export default definePlugin((ServerAPI: ServerAPI) => {
+  const connection = new HubConnectionBuilder()
+    .withUrl("http://localhost:9988/SignalrHub")
+    .withAutomaticReconnect()
+    .build();
 
-    const connection = new HubConnectionBuilder()
-        .withUrl("http://localhost:6969/streamhub")
-        .withAutomaticReconnect()
-        .build();
+  connection.start().then(() => {
+    console.log("Connected to ODS backend");
+    console.log(connection.invoke("GetConfig"));
+  }).catch((err) => {
+    console.error(err.toString());
+  });
 
-    connection.start()
+  let isPressed = false;
 
+  async function handleButtonInput(val: any[]) {
+    for (const inputs of val) {
+      // noinspection JSBitwiseOperatorUsage
+      if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
+        if (!isPressed) {
+          isPressed = true;
+          var config = await connection.invoke("GetConfig");
+          if (!config.replayBufferEnabled) continue;
 
-    async function handleButtonInput(val: any[]) {
-        let isPressed = false;
-
-        for (const inputs of val) {
-
-            // noinspection JSBitwiseOperatorUsage
-            if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
-                if (!isPressed) {
-                    isPressed = true;
-                    await connection.invoke("SaveShadow");
-                        ServerAPI.toaster.toast({
-                            title: "Clip saved",
-                            body: "Tap to view",
-                            icon: <FaVideo/>,
-                            critical: true,
-                            onClick: () => Router.Navigate("/media/tab/videos")
-                        })
-                    
-                }
-            } else if (isPressed) {
-                (Router as any).DisableHomeAndQuickAccessButtons();
-                setTimeout(() => {
-                    (Router as any).EnableHomeAndQuickAccessButtons();
-                }, 1000)
-                isPressed = false;
-            }
+          connection.invoke("SaveReplayBuffer").then(() => {
+            serverApi.toaster.toast({
+              title: "Clip saved",
+              // body: "Tap to view",
+              body: "",
+              icon: <FaVideo />,
+              critical: true,
+              //onClick: () => Router.Navigate("/media/tab/videos")
+            })
+          }).catch(() => {
+            serverApi.toaster.toast({
+              title: "Failed to save clip",
+              body: "",
+              icon: <FaVideo />,
+              critical: true,
+            })
+          })
         }
+      } else if (isPressed) {
+        (Router as any).DisableHomeAndQuickAccessButtons();
+        setTimeout(() => {
+          (Router as any).EnableHomeAndQuickAccessButtons();
+        }, 1000)
+        isPressed = false;
+      }
     }
+  }
 
 
-    const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
-    const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(async () => {
-        await connection.invoke("Suspend");
+  const inputRegistration = window.SteamClient.Input.RegisterForControllerStateChanges(handleButtonInput)
+  const suspendRequestRegistration = window.SteamClient.System.RegisterForOnSuspendRequest(async () => {
+    //todo: implement
+  });
 
-    });
-    
-    const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
-        await connection.invoke("ResumeSuspend");
-    });
-
-
-    const mediaPatch = ServerAPI.routerHook.addPatch("/media", (route: any) => {
-        afterPatch(route.children, "type", (_: any, res: any) => {
-            wrapReactType(res);
-            afterPatch(res.type, "type", (_: any, res: any) => {
-                if (res?.props?.children[1]?.props?.tabs && !res?.props?.children[1]?.props?.tabs?.find((tab: Tab) => tab.id == "videos")) res.props.children[1].props.tabs.push({
-                    id: "videos",
-                    title: "Videos",
-                    content: <VideosTab ServerAPI={ServerAPI}/>,
-                    footer: {
-                        onMenuActionDescription: "Filter",
-                        onMenuButton: () => {
-                            console.log("menu")
-                        }
-                    },
-                    renderTabAddon: () => <VideosTabAddon ServerAPI={ServerAPI}/>
-                })
-                return res;
-            });
-            return res;
-        })
-        return route;
-    })
+  const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
+    //todo: implement
+  });
 
 
-    return {
-        title: <div className={staticClasses.Title}>DeckyStream</div>,
-        content: <Content ServerAPI={ServerAPI} Connection={connection}/>,
-        icon: <FaVideo/>,
-        onDismount() {
-            inputRegistration.unregister();
-            suspendRequestRegistration.unregister();
-            suspendResumeRegistration.unregister();
-            ServerAPI.routerHook.removePatch("/media", mediaPatch);
-        },
-    };
+
+  return {
+    title: <div className={staticClasses.Title}>OpenDeckStream</div>,
+    content: <Content serverAPI={serverApi} connection={connection} />,
+    icon: <FaVideo />,
+    onDismount() {
+      inputRegistration.unregister();
+      suspendRequestRegistration.unregister();
+      suspendResumeRegistration.unregister();
+      connection.stop();
+    },
+  };
 });
