@@ -4,7 +4,7 @@
   "flags": [""],
   "publish": {
     "tags": ["recording"],
-    "description": "Streaming and record plugin.",
+    "description": "Recording plugin using OBS internals",
     "image": "https://opengraph.githubassets.com/1/Epictek/OpenDeckStream"
   }
 }

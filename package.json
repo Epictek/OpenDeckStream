@@ -1,7 +1,7 @@
 {
-  "name": "OpenDeckStream",
+  "name": "opendeckstream",
   "version": "0.0.1",
-  "description": "Streaming and recording plugin",
+  "description": "Recording plugin using OBS internals",
   "scripts": {
     "build": "shx rm -rf dist && rollup -c",
     "watch": "rollup -c -w",

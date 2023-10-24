@@ -51,14 +51,9 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     };
   }, []);
 
-  // const [volume, setVolume] = useState(0);
-
-  // const [bufferEnabled, setBufferEnabled] = useState(false);
-
   const ToggleBuffer = (checked : boolean) => {
       SaveConfig({ ...Config, replayBufferEnabled: checked });
 
-      // setBufferEnabled(checked);
       connection.invoke("BufferOutput", checked);
   }
 
@@ -73,10 +68,6 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     await connection.invoke("UpdateBufferSettings");
 
   }
-
-  // useEffect(() => {
-  //   connection.invoke("SetSpeakerVolume", volume);
-  // }, [volume])
 
   const [isRecording, setIsRecording] = useState(false);
 
