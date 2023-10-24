@@ -1,7 +1,7 @@
 {
   "name": "OpenDeckStream",
   "author": "Epictek",
-  "flags": ["_root"],
+  "flags": [""],
   "publish": {
     "tags": ["recording"],
     "description": "Streaming and record plugin.",
