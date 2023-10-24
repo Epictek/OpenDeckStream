@@ -45,11 +45,11 @@ A special thank you to the following teams for their incredible contributions:
 
 - [@lulzsun](https://github.com/lulzsun) for creating the [LibObs C# wrapper](https://github.com/lulzsun/libobs.NET) that made this project possible, checkout his project called [RePlays](https://github.com/lulzsun/RePlays).
 
-The [OBS Studio Team](https://github.com/obsproject/obs-studio) for crafting libobs, the wonderful library that's the heart of this plugin.
+- The [OBS Studio Team](https://github.com/obsproject/obs-studio) for crafting libobs, the wonderful library that's the heart of this plugin.
 
-The [Steam Deck Homebrew](https://github.com/SteamDeckHomebrew) Team for the exceptional Decky plugin manager that aids seamless integration of plugins into the SteamDeck.
+- The [Steam Deck Homebrew](https://github.com/SteamDeckHomebrew) Team for the exceptional Decky plugin manager that aids seamless integration of plugins into the SteamDeck.
 
-[@nabel0](https://github.com/nabel0) and [@CarJem]((https://github.com/CarJem)) for providing their assitance with testing
+- [@nabel0](https://github.com/nabel0) and [@CarJem](https://github.com/CarJem) for providing their assistance with testing.
 ---
 
 Thanks for checking out OpenDeckStream, happy gaming and recording!
