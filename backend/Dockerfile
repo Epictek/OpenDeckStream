@@ -1,4 +1,4 @@
-FROM holo-toolchain-dotnet:latest
+FROM ghcr.io/steamdeckhomebrew/holo-base:latest
 
 RUN pacman -Sy --noconfirm wget zlib clang && \
     wget https://dot.net/v1/dotnet-install.sh && \
