@@ -3,7 +3,7 @@
   "author": "Epictek",
   "flags": ["_root"],
   "publish": {
-    "tags": ["root"],
+    "tags": ["recording"],
     "description": "Streaming and record plugin.",
     "image": "https://opengraph.githubassets.com/1/Epictek/OpenDeckStream"
   }
