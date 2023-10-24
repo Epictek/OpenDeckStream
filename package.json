@@ -1,7 +1,7 @@
 {
   "name": "OpenDeckStream",
   "version": "0.0.1",
-  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
+  "description": "Streaming and recording plugin",
   "scripts": {
     "build": "shx rm -rf dist && rollup -c",
     "watch": "rollup -c -w",
@@ -14,7 +14,7 @@
   "keywords": [
     "decky",
     "plugin",
-    "plugin-template",
+    "recording",
     "steam-deck",
     "deck"
   ],
