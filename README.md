@@ -13,6 +13,10 @@ In the future, we plan on implementing streaming capabilities to bring live cast
 * Planned Future Support for Streaming
 
 ## Installation
+Install from the Decky Test Store.
+
+
+## Dev Build Instructions 
 Ensure you have git, docker and decky-cli installed
 
 1. Clone the repository
