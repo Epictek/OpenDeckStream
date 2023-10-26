@@ -12,6 +12,7 @@ public class Config
     public int ReplayBufferSeconds { get; set; } = 60;
     public string Encoder { get; set; } = "ffmpeg_vaapi";
     public int ReplayBufferSize { get; set; } = 500;
+    public string Key { get; set; } = "";
 }
 
 public class ConfigService

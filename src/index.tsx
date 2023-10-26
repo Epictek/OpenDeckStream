@@ -94,6 +94,35 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
       })
     }
   }
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  const ToggleStreaming = () => {
+    if (!isStreaming) {
+      connection.invoke("StartStreaming").then(() => {
+        setIsStreaming(true);
+      }).catch(() => {
+
+      })
+    } else {
+      connection.invoke("StopStreaming").then(() => {
+        setIsStreaming(false);
+        serverAPI.toaster.toast({
+          title: "finished streaming",
+          // body: "Tap to view",
+          body: "",
+          icon: <FaVideo />,
+          critical: true,
+          //onClick: () => Router.Navigate("/media/tab/videos")
+        })
+      }).catch(() => {
+
+      })
+    }
+  }
+
+  var vbitrate = 3500;
+  var abitrate = 128;
+  let memMB = BigInt(Config.replayBufferSeconds) * BigInt(vbitrate + abitrate) * 1000n /8n / 1024n / 1024n;
 
   return (
     <PanelSection>
@@ -105,6 +134,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
           { data: 60, label: "60 seconds" },
           { data: 120, label: "120 seconds" }]}
           selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
+        <p>Estimated memory usage: {memMB} MB</p>
 
         <ButtonItem
           layout="below"
@@ -112,7 +142,16 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
         >
           {isRecording ? "Stop Recording" : "Start Recording"}
         </ButtonItem>
+
+
+        <ButtonItem
+          layout="below"
+          onClick={ToggleStreaming}>
+          {isStreaming ? "Stop Streaming" : "Start Streaming"}
+          </ButtonItem>
       </PanelSectionRow>
+
+
 
       <PanelSectionRow>
         {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
@@ -132,11 +171,19 @@ export default definePlugin((serverApi: ServerAPI) => {
     .withAutomaticReconnect()
     .build();
 
+    connection.onclose(() => {
+      console.log("Connection closed");
+      setTimeout(function() {
+        console.log("Reconnecting"); 
+        connection.start();
+       }, 5000);
+    });
+
   connection.start().then(() => {
     console.log("Connected to ODS backend");
     console.log(connection.invoke("GetConfig"));
   }).catch((err) => {
-    console.error(err.toString());
+    console.log("Failed to connect to ODS backend", err);
   });
 
   let isPressed = false;

@@ -33,6 +33,11 @@ namespace obs_net
             [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8StringMarshaler))] string module_config_path,
         profiler_name_store_t store);
 
+
+        [DllImport(importLibrary, EntryPoint = "obs_shutdown", CallingConvention = importCall, CharSet = importCharSet)]
+        public static extern void obs_shutdown();
+
+
         /// <summary>
         /// https://obsproject.com/docs/reference-core.html#c.obs_get_version_string
         /// </summary>
@@ -316,5 +321,145 @@ namespace obs_net
             OBS_VIDEO_CURRENTLY_ACTIVE = -4,
             OBS_VIDEO_MODULE_NOT_FOUND = -5
         }
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool EnumServicesProc([MarshalAs(UnmanagedType.LPStr)] string id, [MarshalAs(UnmanagedType.LPStr)] string name, IntPtr param);
+
+        [DllImport(importLibrary, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void obs_enum_service_types(EnumServicesProc enumProc, IntPtr param);
+
+
+
+
+    struct obs_context_data
+    {
+        // ... other fields ...
+    }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct obs_service_info{
+    public IntPtr id; // const char*
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetNameDelegate(IntPtr type_data);
+    public GetNameDelegate get_name;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr CreateDelegate(IntPtr settings, IntPtr service);
+    public CreateDelegate create;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void DestroyDelegate(IntPtr data);
+    public DestroyDelegate destroy;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void ActivateDelegate(IntPtr data, IntPtr settings);
+    public ActivateDelegate activate;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void DeactivateDelegate(IntPtr data);
+    public DeactivateDelegate deactivate;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void UpdateDelegate(IntPtr data, IntPtr settings);
+    public UpdateDelegate update;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void GetDefaultsDelegate(IntPtr settings);
+    public GetDefaultsDelegate get_defaults;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetPropertiesDelegate(IntPtr data);
+    public GetPropertiesDelegate get_properties;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate bool InitializeDelegate(IntPtr data, IntPtr output);
+    public InitializeDelegate initialize;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetUrlDelegate(IntPtr data);
+    public GetUrlDelegate get_url;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetKeyDelegate(IntPtr data);
+    public GetKeyDelegate get_key;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetUsernameDelegate(IntPtr data);
+    public GetUsernameDelegate get_username;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetPasswordDelegate(IntPtr data);
+    public GetPasswordDelegate get_password;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate bool Deprecated1Delegate();
+    public Deprecated1Delegate deprecated_1;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void ApplyEncoderSettingsDelegate(IntPtr data, IntPtr video_encoder_settings, IntPtr audio_encoder_settings);
+    public ApplyEncoderSettingsDelegate apply_encoder_settings;
+
+    public IntPtr type_data;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void FreeTypeDataDelegate(IntPtr type_data);
+    public FreeTypeDataDelegate free_type_data;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetOutputTypeDelegate(IntPtr data);
+    public GetOutputTypeDelegate get_output_type;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void GetSupportedResolutionsDelegate(IntPtr data, ref IntPtr resolutions, ref int count);
+    public GetSupportedResolutionsDelegate get_supported_resolutions;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void GetMaxFpsDelegate(IntPtr data, ref int fps);
+    public GetMaxFpsDelegate get_max_fps;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void GetMaxBitrateDelegate(IntPtr data, ref int video_bitrate, ref int audio_bitrate);
+    public GetMaxBitrateDelegate get_max_bitrate;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetSupportedVideoCodecsDelegate(IntPtr data);
+    public GetSupportedVideoCodecsDelegate get_supported_video_codecs;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetProtocolDelegate(IntPtr data);
+    public GetProtocolDelegate get_protocol;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetSupportedAudioCodecsDelegate(IntPtr data);
+    public GetSupportedAudioCodecsDelegate get_supported_audio_codecs;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate IntPtr GetConnectInfoDelegate(IntPtr data, uint type);
+    public GetConnectInfoDelegate get_connect_info;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate bool CanTryToConnectDelegate(IntPtr data);
+    public CanTryToConnectDelegate can_try_to_connect;
+}
+
+    public struct obs_service
+    {
+        public IntPtr context;
+        public obs_service_info info;
+        public bool owns_info_id;
+        public bool active;
+        public bool destroy;
+        public IntPtr output;  // assuming obs_output is some kind of pointer
+    }
+
+
+    // Define the callback delegate.
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate bool ObsServiceEnumProc(IntPtr param, obs_service service);
+
+    [DllImport(importLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void obs_enum_services(ObsServiceEnumProc enumProc, IntPtr param);
+
     }
 }

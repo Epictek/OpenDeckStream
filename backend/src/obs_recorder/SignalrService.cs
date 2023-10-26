@@ -65,6 +65,16 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         RecordingService.StopRecording();
     }
 
+    public void StartStreaming()
+    {
+        RecordingService.StartStreaming();
+    }
+
+    public void StopStreaming()
+    {
+        RecordingService.StopStreaming();
+    }
+
     public bool BufferOutput(bool enabled)
     {
         var config = ConfigService.GetConfig();

@@ -9,16 +9,17 @@ using System.Reflection;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using System.Runtime.InteropServices;
 using System.Linq;
-
 public class ObsRecordingService : IDisposable
 {
+    readonly IntPtr NULL = IntPtr.Zero;
+
     public void Dispose()
     {
         StopRecording();
 
         obs_output_stop(bufferOutput);
         obs_output_release(bufferOutput);
-
+        obs_shutdown();
     }
 
     IntPtr bufferOutput;
@@ -76,29 +77,48 @@ public class ObsRecordingService : IDisposable
         Directory.SetCurrentDirectory(Path.Combine(System.AppContext.BaseDirectory, "obs"));
         Logger.LogError("Current directory: " + Directory.GetCurrentDirectory());
 
+        IntPtr display = IntPtr.Zero;
+
+        try {
+            display = X11Interop.XOpenDisplay(IntPtr.Zero);
+            while (display == IntPtr.Zero)
+            {
+                Logger.LogError("Failed to open display, retrying in 5 second");
+                Task.Delay(5000).Wait();
+                display = X11Interop.XOpenDisplay(IntPtr.Zero);
+            }
+        } catch (Exception ex) {
+            Logger.LogError(ex, "failed to open display");
+        }
+
         if (obs_initialized())
         {
             throw new Exception("error: obs already initialized");
         }
 
         obs_set_nix_platform(obs_nix_platform_type.OBS_NIX_PLATFORM_X11_EGL);
-        obs_set_nix_platform_display(UnixSysCalls.XOpenDisplay(IntPtr.Zero));
+        obs_set_nix_platform_display(display);
 
 
-        // base_set_log_handler(new log_handler_t((lvl, msg, args, p) =>
-        // {
-        //      va_list.LinuxX64Callback(msg, args, Logger);
-        // //    if (Logger is not null)
-        // //     {
-        // //         Logger.Log(LogErrorLvlToLogLvl((LogErrorLevel)lvl), logMsg);
-        // //     }
-        //  }), IntPtr.Zero);
+        base_set_log_handler(new log_handler_t((lvl, msg, args, p) =>
+        {
+            try
+            {
+                va_list.LinuxX64Callback(msg, args, Logger);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in log handler: " + ex);
+            }
+        }), IntPtr.Zero);
 
         Logger.LogInformation("libobs version: " + obs_get_version_string());
         if (!obs_startup("en-US", null, IntPtr.Zero))
         {
             throw new Exception("error on libobs startup");
         }
+
+
 
         //var obsPath = "~/obs-portable/";
         var obsPath = "./";
@@ -107,6 +127,17 @@ public class ObsRecordingService : IDisposable
         obs_add_module_path($"{obsPath}obs-plugins/64bit/", $"{obsPath}data/obs-plugins/%module%/");
         obs_load_all_modules();
         obs_log_loaded_modules();
+
+
+        EnumServicesProc serviceProc = (string id, string name, IntPtr param) =>
+        {
+            Logger.LogError($"Service ID: {id}, Service Name: {name}");
+
+            return true;
+        };
+
+
+
 
         obs_audio_info avi = new()
         {
@@ -120,6 +151,19 @@ public class ObsRecordingService : IDisposable
         obs_post_load_modules();
         Logger.LogInformation("Loaded modules");
 
+        Logger.LogInformation("listing services");
+        obs_enum_service_types(serviceProc, IntPtr.Zero);
+
+        ObsServiceEnumProc callback = (param, service) =>
+        {
+            string serviceName = Marshal.PtrToStringAnsi(service.info.get_name(service.info.type_data));
+            Console.WriteLine($"Service Name: {serviceName}");
+            return true;
+        };
+
+        obs_enum_services(callback, IntPtr.Zero);
+
+
         InitVideoOut();
         InitBufferOutput();
         Initialized = true;
@@ -128,11 +172,55 @@ public class ObsRecordingService : IDisposable
         if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0) StartBufferOutput();
     }
 
+
+    public void StartStreaming()
+    {
+        var config = ConfigService.GetConfig();
+        IntPtr settings = obs_data_create();
+        // obs_data_set_string(settings, "server", "rtmp://live.twitch.tv/app/");
+        obs_data_set_string(settings, "service", "Twitch");
+        obs_data_set_string(settings, "server", "auto");
+        obs_data_set_string(settings, "key", config.Key);
+
+        IntPtr output = obs_output_create("rtmp_output", "simple_stream", settings, IntPtr.Zero);
+        obs_data_release(settings);
+
+        if (output == IntPtr.Zero)
+        {
+            Console.WriteLine("Failed to create OBS output.");
+            return;
+        }
+
+        obs_output_set_video_encoder(output, videoEncoder);
+        obs_output_set_audio_encoder(output, audioEncoder, (UIntPtr)0);
+
+        obs_output_start(output);
+
+    }
+
+    public void StopStreaming()
+    {
+
+    }
+
     private void ResetVideo()
     {
         // scene rendering resolution
+
+
+
         int MainWidth = 1280;
         int MainHeight = 800;
+
+        try
+        {
+            var sizes = X11Interop.GetSize();
+            (MainWidth, MainHeight) = (sizes.width, sizes.height);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "failed to get size from X11");
+        }
 
         int outputWidth = MainWidth;
         int outputHeight = MainHeight;
