@@ -25,8 +25,8 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         Console.WriteLine("Client connected");
 
 
-        var (Running, Recording) = RecordingService.GetStatus();
-        _ = Clients.Caller.OnStatusChanged(Running, Recording);
+        var (Running, Recording, BufferRunning) = RecordingService.GetStatus();
+        _ = Clients.Caller.OnStatusChanged(Running, Recording, BufferRunning);
     }
 
     void OnVolumePeakChanged(object sender, VolumePeakChangedArg e)
@@ -37,8 +37,8 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 
     void OnStatusChanged(object sender, EventArgs e)
     {
-        var (Running, Recording) = RecordingService.GetStatus();
-        _ = Clients.Caller.OnStatusChanged(Running, Recording);
+        var (Running, Recording, BufferRunning) = RecordingService.GetStatus();
+        _ = Clients.Caller.OnStatusChanged(Running, Recording, BufferRunning);
     }
     
     
@@ -50,9 +50,9 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 
     public object GetStatus()
     {
-        var (Running, Recording) = RecordingService.GetStatus();
+        var (Running, Recording, BufferRunning) = RecordingService.GetStatus();
         //todo add types
-        return new {Running, Recording};
+        return new {Running, Recording, BufferRunning};
     }
 
     public void StartRecording()
@@ -75,7 +75,7 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
         RecordingService.StopStreaming();
     }
 
-    public bool BufferOutput(bool enabled)
+    public bool ToggleBufferOutput(bool enabled)
     {
         var config = ConfigService.GetConfig();
 
@@ -121,7 +121,7 @@ public class SignalrHub : Hub<SignalrHubClient>, IDisposable
 
 public interface SignalrHubClient
 {
-    public Task OnStatusChanged(bool running, bool recording);
+    public Task OnStatusChanged(bool running, bool recording, bool BufferRunning);
 
     public Task OnVolumePeakChanged(int channel, float peak);
 }

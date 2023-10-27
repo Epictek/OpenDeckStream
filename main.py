@@ -30,20 +30,14 @@ class Plugin:
                 # Start OBS recorder process
                 self.backend_proc = Popen(
                     [decky_plugin.DECKY_PLUGIN_DIR + "/bin/obs_recorder"],
-                    env=env_proc, stdout=PIPE, stderr=STDOUT)
-
-                # Log subprocess output
-                with self.backend_proc.stdout:
-                    for line in iter(self.backend_proc.stdout.readline, b''):
-                        decky_plugin.logger.info('.NET: %r', line)
+                    env=env_proc)
 
                 # Wait for process to finish
                 self.backend_proc.wait()
             except Exception as e:
                 decky_plugin.logger.error(f"opendeckstream crashed with error: {e}")
                 decky_plugin.logger.info("opendeckstream restarting in 5 seconds!")
-                time.sleep(5)
-                continue
+            time.sleep(5)
 
     # Function called first during the unload process, utilize this to handle your plugin being removed
     async def _unload(self):

@@ -59,6 +59,7 @@ public class ObsRecordingService : IDisposable
         }
     }
 
+    public bool BufferRunning { get; set; }
 
     readonly ILogger Logger;
     readonly ConfigService ConfigService;
@@ -67,8 +68,6 @@ public class ObsRecordingService : IDisposable
     {
         Logger = logger;
         ConfigService = configService;
-
-        ;
     }
 
     public void Init()
@@ -79,7 +78,8 @@ public class ObsRecordingService : IDisposable
 
         IntPtr display = IntPtr.Zero;
 
-        try {
+        try
+        {
             display = X11Interop.XOpenDisplay(IntPtr.Zero);
             while (display == IntPtr.Zero)
             {
@@ -87,7 +87,9 @@ public class ObsRecordingService : IDisposable
                 Task.Delay(5000).Wait();
                 display = X11Interop.XOpenDisplay(IntPtr.Zero);
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             Logger.LogError(ex, "failed to open display");
         }
 
@@ -108,7 +110,7 @@ public class ObsRecordingService : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error in log handler: " + ex);
+                Logger.LogError(ex, "Error in log handler: ");
             }
         }), IntPtr.Zero);
 
@@ -118,26 +120,10 @@ public class ObsRecordingService : IDisposable
             throw new Exception("error on libobs startup");
         }
 
-
-
-        //var obsPath = "~/obs-portable/";
-        var obsPath = "./";
-
-        obs_add_data_path($"{obsPath}data/libobs/");
-        obs_add_module_path($"{obsPath}obs-plugins/64bit/", $"{obsPath}data/obs-plugins/%module%/");
+        obs_add_data_path($"data/libobs/");
+        obs_add_module_path($"obs-plugins/64bit/", $"data/obs-plugins/%module%/");
         obs_load_all_modules();
         obs_log_loaded_modules();
-
-
-        EnumServicesProc serviceProc = (string id, string name, IntPtr param) =>
-        {
-            Logger.LogError($"Service ID: {id}, Service Name: {name}");
-
-            return true;
-        };
-
-
-
 
         obs_audio_info avi = new()
         {
@@ -151,25 +137,14 @@ public class ObsRecordingService : IDisposable
         obs_post_load_modules();
         Logger.LogInformation("Loaded modules");
 
-        Logger.LogInformation("listing services");
-        obs_enum_service_types(serviceProc, IntPtr.Zero);
-
-        ObsServiceEnumProc callback = (param, service) =>
-        {
-            string serviceName = Marshal.PtrToStringAnsi(service.info.get_name(service.info.type_data));
-            Console.WriteLine($"Service Name: {serviceName}");
-            return true;
-        };
-
-        obs_enum_services(callback, IntPtr.Zero);
-
-
         InitVideoOut();
-        InitBufferOutput();
+
         Initialized = true;
 
         var config = ConfigService.GetConfig();
-        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0) StartBufferOutput();
+        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0) {
+            StartBufferOutput();
+        }
     }
 
 
@@ -205,10 +180,6 @@ public class ObsRecordingService : IDisposable
 
     private void ResetVideo()
     {
-        // scene rendering resolution
-
-
-
         int MainWidth = 1280;
         int MainHeight = 800;
 
@@ -219,7 +190,7 @@ public class ObsRecordingService : IDisposable
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "failed to get size from X11");
+            Logger.LogError(ex, "failed to get size from X11 falling back to defaults");
         }
 
         int outputWidth = MainWidth;
@@ -252,7 +223,6 @@ public class ObsRecordingService : IDisposable
     public void StopRecording()
     {
         Logger.LogInformation("Stopping recording");
-        //obs_output_stop(bufferOutput);
         obs_output_stop(recordOutput);
 
         obs_output_release(recordOutput);
@@ -300,8 +270,7 @@ public class ObsRecordingService : IDisposable
 
         IntPtr videoSource = obs_source_create("pipewire-gamescope-capture-source", "Gamescope Capture Source", IntPtr.Zero, IntPtr.Zero);
 
-        obs_set_output_source(0, videoSource); //0 = VIDEO CHANNEL
-
+        obs_set_output_source(0, videoSource);
 
         IntPtr videoEncoderSettings = obs_data_create();
 
@@ -318,19 +287,12 @@ public class ObsRecordingService : IDisposable
 
         // SETUP NEW AUDIO SOURCE
         IntPtr audioSource = obs_source_create("pulse_output_capture", "Audio Capture Source", IntPtr.Zero, IntPtr.Zero);
-        obs_set_output_source(1, audioSource); //1 = AUDIO CHANNEL
-                                               // SETUP NEW AUDIO ENCODER
+        obs_set_output_source(1, audioSource); 
 
         obs_source_add_audio_capture_callback(audioSource, OnAudioData, IntPtr.Zero);
 
-
         audioEncoder = obs_audio_encoder_create("ffmpeg_aac", "simple_aac_recording", IntPtr.Zero, (UIntPtr)0, IntPtr.Zero);
         obs_encoder_set_audio(audioEncoder, obs_get_audio());
-
-
-
-        // SETUP NEW RECORD OUTPUT
-
     }
 
     void InitBufferOutput()
@@ -383,6 +345,7 @@ public class ObsRecordingService : IDisposable
 
     public bool StartBufferOutput()
     {
+        InitBufferOutput();
         if (!Initialized)
         {
             Logger.LogWarning("Not initialized yet, skipping start buffer");
@@ -392,7 +355,7 @@ public class ObsRecordingService : IDisposable
         bool bufferOutputStartSuccess = obs_output_start(bufferOutput);
         Logger.LogInformation("buffer output successful start: " + bufferOutputStartSuccess);
         if (!bufferOutputStartSuccess) Logger.LogError("buffer output error: '" + obs_output_get_last_error(bufferOutput) + "'");
-
+        BufferRunning = bufferOutputStartSuccess;
         return bufferOutputStartSuccess;
     }
 
@@ -447,14 +410,14 @@ public class ObsRecordingService : IDisposable
 
     public void StopBufferOutput()
     {
-        var config = ConfigService.GetConfig();
+        BufferRunning = false;
         obs_output_stop(bufferOutput);
         obs_output_release(bufferOutput);
     }
 
-    public (bool Running, bool Recording) GetStatus()
+    public (bool Running, bool Recording, bool BufferRunning) GetStatus()
     {
-        return (Initialized, Recording);
+        return (Initialized, Recording, BufferRunning);
     }
 
 

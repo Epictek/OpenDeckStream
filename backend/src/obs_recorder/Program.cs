@@ -12,8 +12,7 @@ using Serilog;
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File(
-	//	System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "logs\\obs-recorder.log"),
-        Path.Combine(Environment.GetEnvironmentVariable("HOME"), "homebrew", "logs", "OpenDeckStream", "obs-recorder.log"),
+        Path.Combine(Environment.GetEnvironmentVariable("DECKY_PLUGIN_LOG_DIR"), "obs-recorder.log"),
        rollingInterval: RollingInterval.Day,
        fileSizeLimitBytes: 10 * 1024 * 1024,
        retainedFileCountLimit: 2,

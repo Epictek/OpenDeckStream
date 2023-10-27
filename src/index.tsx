@@ -24,7 +24,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
   const [PeakVolume, SetPeakVolume] = useState(0);
 
-  const [Config, SetConfig] = useState({replayBufferSeconds: 60, replayBufferEnabled: true} as ConfigType);
+  const [Config, SetConfig] = useState({ replayBufferSeconds: 60, replayBufferEnabled: true } as ConfigType);
 
   useEffect(() => {
     console.log("registering");
@@ -33,12 +33,12 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
       SetPeakVolume(peak);
     };
 
-    connection.invoke("GetConfig").then((config : ConfigType) => {
+    connection.invoke("GetConfig").then((config: ConfigType) => {
       SetConfig(config);
       // setBufferEnabled(config.replayBufferEnabled)
     });
 
-    connection.invoke("GetStatus").then((status : any) => {
+    connection.invoke("GetStatus").then((status: any) => {
       console.log("Status:" + status);
       setIsRecording(status.recording);
     });
@@ -51,10 +51,11 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     };
   }, []);
 
-  const ToggleBuffer = (checked : boolean) => {
-      SaveConfig({ ...Config, replayBufferEnabled: checked });
+  const ToggleBuffer = async (checked: boolean) => {
+    var success = await connection.invoke<boolean>("ToggleBufferOutput", checked);
 
-      connection.invoke("BufferOutput", checked);
+    SetConfig({ ...Config, replayBufferEnabled: success });
+
   }
 
   const SaveConfig = (Config: ConfigType) => {
@@ -120,9 +121,9 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
     }
   }
 
+  //todo: don't hardcode bitrate
   var vbitrate = 3500;
   var abitrate = 128;
-  let memMB = BigInt(Config.replayBufferSeconds) * BigInt(vbitrate + abitrate) * 1000n /8n / 1024n / 1024n;
 
   return (
     <PanelSection>
@@ -134,7 +135,7 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
           { data: 60, label: "60 seconds" },
           { data: 120, label: "120 seconds" }]}
           selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
-        <p>Estimated memory usage: {memMB} MB</p>
+        <p>Estimated memory usage: {(Config.replayBufferSeconds * (vbitrate + abitrate) * 1000 / 8 / 1024 / 1024).toFixed(1)} MB</p>
 
         <ButtonItem
           layout="below"
@@ -143,15 +144,12 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
           {isRecording ? "Stop Recording" : "Start Recording"}
         </ButtonItem>
 
-
-        <ButtonItem
+        {/* <ButtonItem
           layout="below"
           onClick={ToggleStreaming}>
           {isStreaming ? "Stop Streaming" : "Start Streaming"}
-          </ButtonItem>
-      </PanelSectionRow>
-
-
+        </ButtonItem> */}
+      </PanelSectionRow> 
 
       <PanelSectionRow>
         {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
@@ -171,13 +169,13 @@ export default definePlugin((serverApi: ServerAPI) => {
     .withAutomaticReconnect()
     .build();
 
-    connection.onclose(() => {
-      console.log("Connection closed");
-      setTimeout(function() {
-        console.log("Reconnecting"); 
-        connection.start();
-       }, 5000);
-    });
+  connection.onclose(() => {
+    console.log("Connection closed");
+    setTimeout(function () {
+      console.log("Reconnecting");
+      connection.start();
+    }, 5000);
+  });
 
   connection.start().then(() => {
     console.log("Connected to ODS backend");
@@ -234,7 +232,6 @@ export default definePlugin((serverApi: ServerAPI) => {
   const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
     //todo: implement
   });
-
 
 
   return {
