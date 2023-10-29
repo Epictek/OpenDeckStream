@@ -42,7 +42,7 @@ Once OpenDeckStream is installed on your SteamDeck, you can access it under your
 3. Choose OpenDeckStream from the list.
 4. Start/Stop recording at your convenience.
 
-To save the replay buffer use the steam + quick access menu buttons. 
+To save the replay buffer use the ![menu](assets/sd_button_steam.svg) + ![steam](assets/sd_button_menu.svg) buttons
 
 ## Acknowledgments
 A special thank you to the following teams for their incredible contributions:
