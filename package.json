@@ -18,7 +18,7 @@
     "steam-deck",
     "deck"
   ],
-  "author": "Kieran Coldron <kieran@coldron.com>",
+  "author": "Epictek <kieran@coldron.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/epictek/OpenDeckStream/issues"
@@ -39,7 +39,6 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "@microsoft/signalr": "8.0.0-rc.2.23480.2",
     "decky-frontend-lib": "^3.21.1",
     "react-icons": "^4.4.0"
   },

@@ -5,10 +5,11 @@ using obs_net;
 using Microsoft.Extensions.Logging;
 
 using System.IO;
-using System.Reflection;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using System.Runtime.InteropServices;
 using System.Linq;
+using System.Text.Json;
+
 public class ObsRecordingService : IDisposable
 {
     readonly IntPtr NULL = IntPtr.Zero;
@@ -28,8 +29,8 @@ public class ObsRecordingService : IDisposable
     IntPtr videoEncoder;
     IntPtr audioEncoder;
     IntPtr streamOutput;
-    public EventHandler OnStatusChanged { get; set; }
-    public EventHandler<VolumePeakChangedArg> OnVolumePeakChanged { get; set; }
+    // public EventHandler OnStatusChanged { get; set; }
+    // public EventHandler<VolumePeakChangedArg> OnVolumePeakChanged { get; set; }
 
     bool initialised;
     bool Initialized
@@ -41,7 +42,7 @@ public class ObsRecordingService : IDisposable
         set
         {
             initialised = value;
-            OnStatusChanged?.Invoke(this, EventArgs.Empty);
+            // OnStatusChanged.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -55,11 +56,24 @@ public class ObsRecordingService : IDisposable
         set
         {
             recording = value;
-            OnStatusChanged?.Invoke(this, EventArgs.Empty);
+            // OnStatusChanged.Invoke(this, EventArgs.Empty);
         }
     }
 
-    public bool BufferRunning { get; set; }
+    bool bufferRunning;
+
+    public bool BufferRunning
+    {
+        get
+        {
+            return bufferRunning;
+        }
+        set
+        {
+            bufferRunning = value;
+            // OnStatusChanged.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     readonly ILogger Logger;
     readonly ConfigService ConfigService;
@@ -102,17 +116,18 @@ public class ObsRecordingService : IDisposable
         obs_set_nix_platform_display(display);
 
 
-        base_set_log_handler(new log_handler_t((lvl, msg, args, p) =>
-        {
-            try
-            {
-                va_list.LinuxX64Callback(msg, args, Logger);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Error in log handler: ");
-            }
-        }), IntPtr.Zero);
+        //this currently segfaults when built with AOT
+        // base_set_log_handler(new log_handler_t((lvl, msg, args, p) =>
+        // {
+        //     try
+        //     {
+        //         va_list.LinuxX64Callback(msg, args, Logger);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Logger.LogError(ex, "Error in log handler: ");
+        //     }
+        // }), IntPtr.Zero);
 
         Logger.LogInformation("libobs version: " + obs_get_version_string());
         if (!obs_startup("en-US", null, IntPtr.Zero))
@@ -140,42 +155,97 @@ public class ObsRecordingService : IDisposable
         InitVideoOut();
 
         Initialized = true;
-
+        Logger.LogInformation("Initialized");
         var config = ConfigService.GetConfig();
-        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0) {
+        Logger.LogError("Config: " + JsonSerializer.Serialize(config, SourceGenerationContext.Default.ConfigModel));
+
+        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0)
+        {
             StartBufferOutput();
         }
     }
 
 
+    IntPtr service = IntPtr.Zero;
+
+
     public void StartStreaming()
     {
-        var config = ConfigService.GetConfig();
-        IntPtr settings = obs_data_create();
-        // obs_data_set_string(settings, "server", "rtmp://live.twitch.tv/app/");
-        obs_data_set_string(settings, "service", "Twitch");
-        obs_data_set_string(settings, "server", "auto");
-        obs_data_set_string(settings, "key", config.Key);
+        service = obs_service_create("rtmp_custom", "rtmp_service", IntPtr.Zero, IntPtr.Zero);
 
-        IntPtr output = obs_output_create("rtmp_output", "simple_stream", settings, IntPtr.Zero);
-        obs_data_release(settings);
 
-        if (output == IntPtr.Zero)
+        if (service == IntPtr.Zero)
         {
-            Console.WriteLine("Failed to create OBS output.");
+            Console.WriteLine("Failed to create rtmp service.");
             return;
         }
 
-        obs_output_set_video_encoder(output, videoEncoder);
-        obs_output_set_audio_encoder(output, audioEncoder, (UIntPtr)0);
+        IntPtr settings = obs_service_get_settings(service);
+        if (settings == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get rtmp service settings.");
+            settings = obs_data_create();
+        }
+        obs_data_set_string(settings, "server", "rtmp://live.twitch.tv/app/");
+        obs_data_set_string(settings, "service", "Twitch");
+        obs_data_set_string(settings, "key", "live_1111");
 
-        obs_output_start(output);
+        obs_service_update(service, settings);
+        obs_data_release(settings);
 
+        streamOutput = obs_output_create("rtmp_output", "rtmp_output", IntPtr.Zero, IntPtr.Zero);
+
+        obs_output_set_video_encoder(streamOutput, videoEncoder);
+        obs_output_set_audio_encoder(streamOutput, audioEncoder, (UIntPtr)0);
+
+        var success = obs_output_start(streamOutput);
+        Logger.LogInformation("stream output successful start: " + success);
+    }
+
+    public void StartStreamingRtc()
+    {
+        service = obs_service_create("whip_custom", "whip_service", IntPtr.Zero, IntPtr.Zero);
+
+
+        if (service == IntPtr.Zero)
+        {
+            Console.WriteLine("Failed to create WHIP service.");
+            return;
+        }
+
+        IntPtr settings = obs_service_get_settings(service);
+        if (settings == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get WHIP service settings.");
+            settings = obs_data_create();
+        }
+        // obs_data_set_string(settings, "server", "rtmp://live.twitch.tv/app/");
+        obs_data_set_string(settings, "service", "whip_custom");
+
+        // Logger.LogInformation("service: {service}", obs_data_get_string(settings, "service"));
+
+        obs_data_set_string(settings, "bearer_token", "ods_test");
+        obs_data_set_string(settings, "server", "https://b.siobud.com/api/whip");
+
+
+
+        obs_service_update(service, settings);
+        obs_data_release(settings);
+
+        streamOutput = obs_output_create("whip_output", "whip_output", IntPtr.Zero, IntPtr.Zero);
+
+        obs_output_set_video_encoder(streamOutput, videoEncoder);
+        obs_output_set_audio_encoder(streamOutput, audioEncoder, (UIntPtr)0);
+
+        var success = obs_output_start(streamOutput);
+        Logger.LogInformation("stream output successful start: " + success);
     }
 
     public void StopStreaming()
     {
-
+        obs_output_stop(streamOutput);
+        obs_output_release(streamOutput);
+        obs_service_release(service);
     }
 
     private void ResetVideo()
@@ -260,7 +330,7 @@ public class ObsRecordingService : IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        OnVolumePeakChanged?.Invoke(null, new VolumePeakChangedArg() { Peak = percentage, Channel = 0 });
+        // OnVolumePeakChanged?.Invoke(null, new VolumePeakChangedArg() { Peak = percentage, Channel = 0 });
     }
 
 
@@ -287,9 +357,9 @@ public class ObsRecordingService : IDisposable
 
         // SETUP NEW AUDIO SOURCE
         IntPtr audioSource = obs_source_create("pulse_output_capture", "Audio Capture Source", IntPtr.Zero, IntPtr.Zero);
-        obs_set_output_source(1, audioSource); 
+        obs_set_output_source(1, audioSource);
 
-        obs_source_add_audio_capture_callback(audioSource, OnAudioData, IntPtr.Zero);
+        // obs_source_add_audio_capture_callback(audioSource, OnAudioData, IntPtr.Zero);
 
         audioEncoder = obs_audio_encoder_create("ffmpeg_aac", "simple_aac_recording", IntPtr.Zero, (UIntPtr)0, IntPtr.Zero);
         obs_encoder_set_audio(audioEncoder, obs_get_audio());
@@ -345,6 +415,7 @@ public class ObsRecordingService : IDisposable
 
     public bool StartBufferOutput()
     {
+        Logger.LogInformation("Starting buffer output");
         InitBufferOutput();
         if (!Initialized)
         {
@@ -415,12 +486,27 @@ public class ObsRecordingService : IDisposable
         obs_output_release(bufferOutput);
     }
 
-    public (bool Running, bool Recording, bool BufferRunning) GetStatus()
+
+
+    public StatusModel GetStatus()
     {
-        return (Initialized, Recording, BufferRunning);
+        return new StatusModel()
+        {
+            Running = Initialized,
+            Recording = Recording,
+            BufferRunning = BufferRunning
+        };
     }
 
 
+}
+
+
+public class StatusModel
+{
+    public bool Running { get; set; }
+    public bool Recording { get; set; }
+    public bool BufferRunning { get; set; }
 }
 
 public class VolumePeakChangedArg : EventArgs

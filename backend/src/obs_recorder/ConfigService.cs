@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-public class Config
+public class ConfigModel
 {
-    public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "ods");
+    public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "ODS");
     public bool ReplayBufferEnabled { get; set; } = false;
     public int ReplayBufferSeconds { get; set; } = 60;
     public string Encoder { get; set; } = "ffmpeg_vaapi";
@@ -15,42 +15,66 @@ public class Config
     public string Key { get; set; } = "";
 }
 
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(ConfigModel))]
+[JsonSerializable(typeof(StatusModel))]
+internal partial class SourceGenerationContext : JsonSerializerContext
+{
+}
+
+
+
 public class ConfigService
 {
-    private readonly string _configFilePath;
-    private ILogger<ConfigService> Logger { get; }
+    private readonly string ConfigFilePath = Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") + "/config.json";
+    private ILogger Logger { get; }
 
-    public ConfigService(string configFilePath, ILogger<ConfigService> logger)
+    public ConfigService(ILogger<ConfigService> logger)
     {
         Logger = logger;
-        _configFilePath = configFilePath;
 
-        if (!File.Exists(_configFilePath))
+        if (!File.Exists(ConfigFilePath))
         {
-            var config = new Config();
+            var config = new ConfigModel();
             _= SaveConfig(config);
         }
     }
 
-
-    public Config GetConfig()
+    public ConfigModel GetConfig()
     {
         Logger.LogInformation("Loading config");
-        if (!File.Exists(_configFilePath))
-        {
-            Logger.LogWarning("Config file not found");
-            return new Config();
-        }
+        try {
+            if (!File.Exists(ConfigFilePath))
+            {
+                Logger.LogWarning("Config file not found");
+                return new ConfigModel();
+            }
 
-        var json = File.ReadAllText(_configFilePath);
-        return JsonSerializer.Deserialize<Config>(json);
+            var json = File.ReadAllText(ConfigFilePath);
+            if (string.IsNullOrEmpty(json))
+            {
+                Logger.LogWarning("Config file is empty");
+                return new ConfigModel();
+            }
+            Logger.LogInformation("Config file found");
+            var deserialisedConfig = JsonSerializer.Deserialize(json, SourceGenerationContext.Default.ConfigModel);
+            if (deserialisedConfig != null) return deserialisedConfig;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Failed to deserialize config");
+        }
+        return new ConfigModel();
     }
 
-    public async Task<Config> SaveConfig(Config config)
+    public async Task<ConfigModel> SaveConfig(ConfigModel config)
     {
         Logger.LogInformation("Saving config");
-        var json = JsonSerializer.Serialize(config);
-        await File.WriteAllTextAsync(_configFilePath, json);
+        var json = JsonSerializer.Serialize(config, SourceGenerationContext.Default.ConfigModel);
+        await File.WriteAllTextAsync(ConfigFilePath, json);
         return config;
     }
 }

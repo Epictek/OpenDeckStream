@@ -1,32 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
-using obs_recorder;
+using Microsoft.Extensions.Logging;
 
-// using Microsoft.Extensions.Logging;
-using Serilog;
-
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File(
-        Path.Combine(Environment.GetEnvironmentVariable("DECKY_PLUGIN_LOG_DIR"), "obs-recorder.log"),
-       rollingInterval: RollingInterval.Day,
-       fileSizeLimitBytes: 10 * 1024 * 1024,
-       retainedFileCountLimit: 2,
-       rollOnFileSizeLimit: true,
-       shared: true,
-	   flushToDiskInterval: TimeSpan.FromSeconds(1)
-	   	)
-	.CreateLogger();
-
-try {
-
-var builder = WebApplication.CreateBuilder(args);
-// builder.Logging.ClearProviders();
-// builder.Logging.AddConsole();
+var builder = WebApplication.CreateSlimBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 #if DEBUG
 
@@ -40,33 +23,53 @@ builder.Services.AddCors(
 #endif
 
 
-builder.Host.UseSerilog(); 
-builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+// builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddSingleton<ObsRecordingService>();
-builder.Services.AddSingleton(x => ActivatorUtilities.CreateInstance<ConfigService>(x, Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") + "/config.json"));
-builder.Services.AddSignalR();
+builder.Services.AddSingleton<ConfigService>();
 
 var app = builder.Build();
-app.UseSerilogRequestLogging();
-app.UseWebSockets();
-
 
 app.UseCors("CorsPolicy");
 
-app.MapHub<SignalrHub>("/SignalrHub");
-
-
 app.MapGet("/", () => "Hello World!");
+app.MapGet("/api/StartRecording", (ObsRecordingService recorder) => recorder.StartRecording());
+app.MapGet("/api/StopRecording", (ObsRecordingService recorder) => recorder.StopRecording());
+app.MapGet("/api/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
+app.MapGet("/api/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
+
+app.MapGet("/api/GetStatus", (ObsRecordingService recorder) => recorder.GetStatus());
+app.MapGet("/api/GetConfig", (ConfigService config) => config.GetConfig());
+app.MapPost("/api/SaveConfig", (ConfigService config, ConfigModel newConfig) => config.SaveConfig(newConfig));
+
+app.MapPost("/api/ToggleBufferOutput", (bool enabled, ObsRecordingService recordingService, ConfigService configService) =>
+{
+    var config = configService.GetConfig();
+
+    if (config.ReplayBufferEnabled == enabled) return true;
+
+    config.ReplayBufferEnabled = enabled;
+    _ = configService.SaveConfig(config);
+
+    if (config.ReplayBufferEnabled)
+    {
+        return recordingService.StartBufferOutput();
+    }
+    else
+    {
+        recordingService.StopBufferOutput();
+        return true;
+    }
+});
+
+app.MapGet("/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
+app.MapGet("/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
+app.MapGet("/UpdateBufferSettings", (ObsRecordingService recorder) => recorder.UpdateBufferSettings());
+app.MapGet("/SaveBuffer", (ObsRecordingService recorder) => recorder.SaveReplayBuffer());
 
 var recorder = app.Services.GetRequiredService<ObsRecordingService>();
 recorder.Init();
 
 
 app.Run("http://0.0.0.0:9988");
-} catch (Exception e) {
-
-	Log.Error(e, "Exception:");
-}
-finally {
-	Log.CloseAndFlush();
-}
+Console.WriteLine("I should never be reached");
+Task.Delay(-1).Wait();

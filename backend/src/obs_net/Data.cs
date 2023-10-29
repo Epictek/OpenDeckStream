@@ -61,5 +61,12 @@ namespace obs_net {
 
         [DllImport(importLibrary, CallingConvention = importCall, CharSet = importCharSet)]
         public static extern string obs_data_get_json(obs_data_t data);
+
+
+        [DllImport(importLibrary, CallingConvention = importCall, CharSet = importCharSet)]
+        public static extern string obs_data_get_string(
+            obs_data_t data,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8StringMarshaler))] string name);
+
     }
 }

@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -75,7 +73,7 @@ namespace obs_net
                 UseStructurePointer(listStructure, listPointer =>
                 {
                     vsprintf(utf8Buffer, format, listPointer);
-                    logger.LogInformation(Utf8ToString(utf8Buffer));
+                    logger.LogInformation("(OBS)" + Utf8ToString(utf8Buffer));
                 });
             }
             finally

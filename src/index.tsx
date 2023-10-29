@@ -12,7 +12,6 @@ import {
 } from "decky-frontend-lib";
 import { useEffect, useState, VFC } from "react";
 import { FaVideo } from "react-icons/fa";
-import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 
 
 interface ConfigType {
@@ -20,53 +19,84 @@ interface ConfigType {
   replayBufferSeconds: number
 }
 
-const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ serverAPI, connection }) => {
 
-  const [PeakVolume, SetPeakVolume] = useState(0);
+
+
+const InvokeAction = async (action: string, obj: any = null) => {
+  if (obj != null) {
+    var response = await fetch(`http://localhost:9988/api/${action}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(obj),
+    });
+
+    if (response.status != 200) {
+      throw new Error("Failed to invoke action");
+    }
+
+    var json = await response.json();
+
+    return json;
+  } else {
+    var response = await fetch(`http://localhost:9988/api/${action}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status != 200) {
+      throw new Error("Failed to invoke action");
+    }
+
+    var json = await response.json();
+
+    return json;
+  }
+}
+
+
+const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
+
 
   const [Config, SetConfig] = useState({ replayBufferSeconds: 60, replayBufferEnabled: true } as ConfigType);
 
   useEffect(() => {
     console.log("registering");
-    const handleVolumePeakChanged = (channel: number, peak: number) => {
-      console.log(peak);
-      SetPeakVolume(peak);
-    };
 
-    connection.invoke("GetConfig").then((config: ConfigType) => {
+    InvokeAction("GetConfig").then((config: ConfigType) => {
       SetConfig(config);
       // setBufferEnabled(config.replayBufferEnabled)
     });
 
-    connection.invoke("GetStatus").then((status: any) => {
+    InvokeAction("GetStatus").then((status: any) => {
       console.log("Status:" + status);
       setIsRecording(status.recording);
     });
 
-    connection.on("OnVolumePeakChanged", handleVolumePeakChanged);
-
     return () => {
       console.log("unregistering");
-      connection.off("OnVolumePeakChanged", handleVolumePeakChanged);
     };
+
   }, []);
 
   const ToggleBuffer = async (checked: boolean) => {
-    var success = await connection.invoke<boolean>("ToggleBufferOutput", checked);
+    var success = JSON.parse(await InvokeAction("ToggleBuffer", { enabled: checked }));
 
     SetConfig({ ...Config, replayBufferEnabled: success });
 
   }
 
   const SaveConfig = (Config: ConfigType) => {
-    connection.invoke("SaveConfig", Config);
+    InvokeAction("SaveConfig", Config);
     SetConfig(Config);
   }
 
   const ChangeBufferSeconds = async (seconds: number) => {
     await SaveConfig({ ...Config, replayBufferSeconds: seconds });
-
-    await connection.invoke("UpdateBufferSettings");
+    await InvokeAction("UpdateBufferSettings");
 
   }
 
@@ -74,13 +104,13 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
   const ToggleRecording = () => {
     if (!isRecording) {
-      connection.invoke("StartRecording").then(() => {
+      InvokeAction("StartRecording").then(() => {
         setIsRecording(true);
       }).catch(() => {
 
       })
     } else {
-      connection.invoke("StopRecording").then(() => {
+      InvokeAction("StopRecording").then(() => {
         setIsRecording(false);
         serverAPI.toaster.toast({
           title: "Recording saved",
@@ -99,13 +129,13 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 
   const ToggleStreaming = () => {
     if (!isStreaming) {
-      connection.invoke("StartStreaming").then(() => {
+      InvokeAction("StartStreaming").then(() => {
         setIsStreaming(true);
       }).catch(() => {
 
       })
     } else {
-      connection.invoke("StopStreaming").then(() => {
+      InvokeAction("StopStreaming").then(() => {
         setIsStreaming(false);
         serverAPI.toaster.toast({
           title: "finished streaming",
@@ -144,12 +174,12 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
           {isRecording ? "Stop Recording" : "Start Recording"}
         </ButtonItem>
 
-        {/* <ButtonItem
+        <ButtonItem
           layout="below"
           onClick={ToggleStreaming}>
           {isStreaming ? "Stop Streaming" : "Start Streaming"}
-        </ButtonItem> */}
-      </PanelSectionRow> 
+        </ButtonItem>
+      </PanelSectionRow>
 
       <PanelSectionRow>
         {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
@@ -163,27 +193,6 @@ const Content: VFC<{ serverAPI: ServerAPI, connection: HubConnection }> = ({ ser
 };
 
 export default definePlugin((serverApi: ServerAPI) => {
-
-  const connection = new HubConnectionBuilder()
-    .withUrl("http://localhost:9988/SignalrHub")
-    .withAutomaticReconnect()
-    .build();
-
-  connection.onclose(() => {
-    console.log("Connection closed");
-    setTimeout(function () {
-      console.log("Reconnecting");
-      connection.start();
-    }, 5000);
-  });
-
-  connection.start().then(() => {
-    console.log("Connected to ODS backend");
-    console.log(connection.invoke("GetConfig"));
-  }).catch((err) => {
-    console.log("Failed to connect to ODS backend", err);
-  });
-
   let isPressed = false;
 
   async function handleButtonInput(val: any[]) {
@@ -192,10 +201,10 @@ export default definePlugin((serverApi: ServerAPI) => {
       if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
         if (!isPressed) {
           isPressed = true;
-          var config = await connection.invoke("GetConfig");
+          var config = await InvokeAction("GetConfig");
           if (!config.replayBufferEnabled) continue;
 
-          connection.invoke("SaveReplayBuffer").then(() => {
+          InvokeAction("SaveReplayBuffer").then(() => {
             serverApi.toaster.toast({
               title: "Clip saved",
               // body: "Tap to view",
@@ -236,13 +245,12 @@ export default definePlugin((serverApi: ServerAPI) => {
 
   return {
     title: <div className={staticClasses.Title}>OpenDeckStream</div>,
-    content: <Content serverAPI={serverApi} connection={connection} />,
+    content: <Content serverAPI={serverApi} />,
     icon: <FaVideo />,
     onDismount() {
       inputRegistration.unregister();
       suspendRequestRegistration.unregister();
       suspendResumeRegistration.unregister();
-      connection.stop();
     },
   };
 });

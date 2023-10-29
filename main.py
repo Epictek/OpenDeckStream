@@ -6,14 +6,12 @@ import time
 import decky_plugin
 
 class Plugin:
-    def log_subprocess_output(pipe):
-        for line in iter(pipe.readline, b''): # b'\n'-separated lines
-            decky_plugin.logger.info('.NET: %r', line)
 
     backend_proc = None
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     import time
-
+    #LOG TO CONSOLE
+    decky_plugin.logger
     async def _main(self):
         while True:
             try:
@@ -23,7 +21,7 @@ class Plugin:
                 env_proc = dict(os.environ)
                 env_proc["DISPLAY"] = ":0"
                 env_proc["XDG_RUNTIME_DIR"] = "/run/user/1000"
-                ld_library_path = decky_plugin.DECKY_PLUGIN_DIR + "/bin/obs/bin/64bit/:" + decky_plugin.DECKY_PLUGIN_DIR + "/bin/ffmpeg-libs/"
+                ld_library_path = decky_plugin.DECKY_PLUGIN_DIR + "/bin/obs/bin/64bit/:" + decky_plugin.DECKY_PLUGIN_DIR + "/bin/libs/"
 
                 env_proc["LD_LIBRARY_PATH"] = ld_library_path
 
@@ -36,7 +34,7 @@ class Plugin:
                 self.backend_proc.wait()
             except Exception as e:
                 decky_plugin.logger.error(f"opendeckstream crashed with error: {e}")
-                decky_plugin.logger.info("opendeckstream restarting in 5 seconds!")
+            decky_plugin.logger.info("opendeckstream restarting in 5 seconds!")
             time.sleep(5)
 
     # Function called first during the unload process, utilize this to handle your plugin being removed

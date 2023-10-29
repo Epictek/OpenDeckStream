@@ -5,13 +5,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>obs_recorder</RootNamespace>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
-    <PublishSingleFile>true</PublishSingleFile>
-    <!-- <PublishTrimmed>true</PublishTrimmed> -->
-    <!-- <PublishAot>true</PublishAot> -->
+    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishAot>true</PublishAot>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Serilog" Version="3.0.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <ProjectReference Include="..\obs_net\obs_net.csproj" />
   </ItemGroup>
 </Project>
