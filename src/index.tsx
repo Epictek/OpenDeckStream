@@ -85,7 +85,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   }, []);
 
   const ToggleBuffer = async (checked: boolean) => {
-    var success = JSON.parse(await InvokeAction("ToggleBuffer", { enabled: checked }));
+    var success = JSON.parse(await InvokeAction("ToggleBuffer", checked));
 
     SetConfig({ ...Config, replayBufferEnabled: success });
 
