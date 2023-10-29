@@ -9,6 +9,7 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.Text.Json;
+using System.Data;
 
 public class ObsRecordingService : IDisposable
 {
@@ -29,8 +30,8 @@ public class ObsRecordingService : IDisposable
     IntPtr videoEncoder;
     IntPtr audioEncoder;
     IntPtr streamOutput;
-    // public EventHandler OnStatusChanged { get; set; }
-    // public EventHandler<VolumePeakChangedArg> OnVolumePeakChanged { get; set; }
+    public Action<StatusModel> OnStatusChanged { get; set;}
+    public Action<VolumePeakLevel> OnVolumePeakChanged { get; set; }
 
     bool initialised;
     bool Initialized
@@ -42,7 +43,7 @@ public class ObsRecordingService : IDisposable
         set
         {
             initialised = value;
-            // OnStatusChanged.Invoke(this, EventArgs.Empty);
+            OnStatusChanged?.Invoke(GetStatus());
         }
     }
 
@@ -56,7 +57,7 @@ public class ObsRecordingService : IDisposable
         set
         {
             recording = value;
-            // OnStatusChanged.Invoke(this, EventArgs.Empty);
+            OnStatusChanged?.Invoke(GetStatus());
         }
     }
 
@@ -71,7 +72,7 @@ public class ObsRecordingService : IDisposable
         set
         {
             bufferRunning = value;
-            // OnStatusChanged.Invoke(this, EventArgs.Empty);
+            OnStatusChanged?.Invoke(GetStatus());
         }
     }
 
@@ -330,7 +331,7 @@ public class ObsRecordingService : IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        // OnVolumePeakChanged?.Invoke(null, new VolumePeakChangedArg() { Peak = percentage, Channel = 0 });
+        OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Channel = 0 });
     }
 
 
@@ -509,7 +510,7 @@ public class StatusModel
     public bool BufferRunning { get; set; }
 }
 
-public class VolumePeakChangedArg : EventArgs
+public class VolumePeakLevel
 {
     public float Peak { get; set; }
     public int Channel { get; set; }

@@ -21,9 +21,6 @@ interface ConfigType {
   replayBufferSeconds: number
 }
 
-
-
-
 const InvokeAction = async (action: string, obj: any = null) => {
   if (obj != null) {
     var response = await fetch(`http://localhost:9988/api/${action}`, {
@@ -61,12 +58,23 @@ const InvokeAction = async (action: string, obj: any = null) => {
 
 
 const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-
-
   const [Config, SetConfig] = useState({ replayBufferSeconds: 60, replayBufferEnabled: true } as ConfigType);
 
   useEffect(() => {
-    console.log("registering");
+    const evtSource = new EventSource("http://localhost:9988/api/status-event");
+
+    evtSource.onmessage = (event) => {
+        console.log(event.data);
+        var status = JSON.parse(event.data);
+        console.log(status);
+        setIsRecording(status.recording);
+        };
+
+    evtSource.onerror = (error) => {
+        console.error("EventSource failed:", error);
+        evtSource.close();
+    };
+
 
     InvokeAction("GetConfig").then((config: ConfigType) => {
       SetConfig(config);
@@ -74,12 +82,11 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     });
 
     InvokeAction("GetStatus").then((status: any) => {
-      console.log("Status:" + status);
       setIsRecording(status.recording);
     });
 
     return () => {
-      console.log("unregistering");
+      evtSource.close();
     };
 
   }, []);
