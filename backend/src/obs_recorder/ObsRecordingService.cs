@@ -157,7 +157,7 @@ public class ObsRecordingService : IDisposable
         Initialized = true;
         Logger.LogInformation("Initialized");
         var config = ConfigService.GetConfig();
-        Logger.LogError("Config: " + JsonSerializer.Serialize(config, SourceGenerationContext.Default.ConfigModel));
+        Logger.LogError("Config: " + JsonSerializer.Serialize(config, ConfigSourceGenerationContext.Default.ConfigModel));
 
         if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0)
         {

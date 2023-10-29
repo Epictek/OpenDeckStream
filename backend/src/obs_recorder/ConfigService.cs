@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+
 public class ConfigModel
 {
     public string VideoOutputPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "ODS");
@@ -20,8 +21,13 @@ public class ConfigModel
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(ConfigModel))]
+internal partial class ConfigSourceGenerationContext : JsonSerializerContext
+{
+}
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(StatusModel))]
-internal partial class SourceGenerationContext : JsonSerializerContext
+internal partial class StatusSourceGenerationContext : JsonSerializerContext
 {
 }
 
@@ -60,7 +66,7 @@ public class ConfigService
                 return new ConfigModel();
             }
             Logger.LogInformation("Config file found");
-            var deserialisedConfig = JsonSerializer.Deserialize(json, SourceGenerationContext.Default.ConfigModel);
+            var deserialisedConfig = JsonSerializer.Deserialize(json, ConfigSourceGenerationContext.Default.ConfigModel);
             if (deserialisedConfig != null) return deserialisedConfig;
         }
         catch (Exception e)
@@ -73,7 +79,7 @@ public class ConfigService
     public async Task<ConfigModel> SaveConfig(ConfigModel config)
     {
         Logger.LogInformation("Saving config");
-        var json = JsonSerializer.Serialize(config, SourceGenerationContext.Default.ConfigModel);
+        var json = JsonSerializer.Serialize(config, ConfigSourceGenerationContext.Default.ConfigModel);
         await File.WriteAllTextAsync(ConfigFilePath, json);
         return config;
     }

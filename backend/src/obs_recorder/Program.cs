@@ -22,6 +22,13 @@ builder.Services.AddCors(
     options => options.AddPolicy("CorsPolicy",x => x.AllowAnyMethod().AllowCredentials().AllowAnyHeader().WithOrigins("https://steamloopback.host")));
 #endif
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, StatusSourceGenerationContext.Default);
+    options.SerializerOptions.TypeInfoResolverChain.Insert(1, ConfigSourceGenerationContext.Default);
+});
+
+
 
 // builder.Services.Configure<JsonOptions>(options => { options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddSingleton<ObsRecordingService>();
@@ -41,7 +48,7 @@ app.MapGet("/api/GetStatus", (ObsRecordingService recorder) => recorder.GetStatu
 app.MapGet("/api/GetConfig", (ConfigService config) => config.GetConfig());
 app.MapPost("/api/SaveConfig", (ConfigService config, ConfigModel newConfig) => config.SaveConfig(newConfig));
 
-app.MapPost("/api/ToggleBufferOutput", (bool enabled, ObsRecordingService recordingService, ConfigService configService) =>
+app.MapPost("/api/ToggleBuffer", (bool enabled, ObsRecordingService recordingService, ConfigService configService) =>
 {
     var config = configService.GetConfig();
 
@@ -61,10 +68,10 @@ app.MapPost("/api/ToggleBufferOutput", (bool enabled, ObsRecordingService record
     }
 });
 
-app.MapGet("/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
-app.MapGet("/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
-app.MapGet("/UpdateBufferSettings", (ObsRecordingService recorder) => recorder.UpdateBufferSettings());
-app.MapGet("/SaveBuffer", (ObsRecordingService recorder) => recorder.SaveReplayBuffer());
+app.MapGet("/api/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
+app.MapGet("/api/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
+app.MapGet("/api/UpdateBufferSettings", (ObsRecordingService recorder) => recorder.UpdateBufferSettings());
+app.MapGet("/api/SaveReplayBuffer", (ObsRecordingService recorder) => recorder.SaveReplayBuffer());
 
 var recorder = app.Services.GetRequiredService<ObsRecordingService>();
 recorder.Init();

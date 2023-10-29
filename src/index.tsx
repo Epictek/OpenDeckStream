@@ -13,6 +13,8 @@ import {
 import { useEffect, useState, VFC } from "react";
 import { FaVideo } from "react-icons/fa";
 
+import menu_icon from "../assets/sd_button_menu.svg";
+import steam_icon from "../assets/sd_button_steam.svg";
 
 interface ConfigType {
   replayBufferEnabled: boolean,
@@ -159,14 +161,17 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     <PanelSection>
       <PanelSectionRow>
         <ToggleField layout="below" label={"Replay Buffer"} checked={Config.replayBufferEnabled} onChange={ToggleBuffer} />
+        {Config.replayBufferEnabled && <div>
+          <Dropdown menuLabel="Replay Length"
+            rgOptions={[{ data: 30, label: "30 seconds" },
+            { data: 60, label: "60 seconds" },
+            { data: 120, label: "120 seconds" }]}
+            selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
+          <p>Estimated memory usage: {(Config.replayBufferSeconds * (vbitrate + abitrate) * 1000 / 8 / 1024 / 1024).toFixed(1)} MB</p>
 
-        <Dropdown menuLabel="Replay Length"
-          rgOptions={[{ data: 30, label: "30 seconds" },
-          { data: 60, label: "60 seconds" },
-          { data: 120, label: "120 seconds" }]}
-          selectedOption={Config.replayBufferSeconds} onChange={(x) => ChangeBufferSeconds(x.data)} />
-        <p>Estimated memory usage: {(Config.replayBufferSeconds * (vbitrate + abitrate) * 1000 / 8 / 1024 / 1024).toFixed(1)} MB</p>
-
+          <p>Save Buffer: <img style={{ verticalAlign: 'middle' }} src={steam_icon}></img> + <img style={{ verticalAlign: 'middle' }} src={menu_icon}></img></p>
+        </div>
+        }
         <ButtonItem
           layout="below"
           onClick={ToggleRecording}

@@ -10,8 +10,9 @@ mkdir -p /backend/out
 cd /backend/src/obs_recorder
 
 dotnet publish -r linux-x64 -c Release -o /backend/out/
+# dotnet publish -r linux-x64 -c Debug -o /backend/out/
 
-# rm -rf /backend/out/obs_recorder.dbg
+rm -rf /backend/out/obs_recorder.dbg
 
 mkdir -p /backend/out/obs
 mv /obs-portable/bin /backend/out/obs/
