@@ -25,7 +25,7 @@ internal partial class ConfigSourceGenerationContext : JsonSerializerContext
 {
 }
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(StatusModel))]
 internal partial class StatusSourceGenerationContext : JsonSerializerContext
 {

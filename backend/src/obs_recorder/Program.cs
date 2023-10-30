@@ -14,16 +14,11 @@ var builder = WebApplication.CreateSlimBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-#if DEBUG
 
 builder.Services.AddCors(
-    options => options.AddPolicy("CorsPolicy", x => x.AllowAnyMethod().AllowAnyHeader().AllowAnyOrigin()));
+    options => options.AddPolicy("CorsPolicy", x => x.AllowAnyMethod().AllowCredentials().AllowAnyHeader().WithOrigins("https://steamloopback.host")));
 
-#else
 
-builder.Services.AddCors(
-    options => options.AddPolicy("CorsPolicy",x => x.AllowAnyMethod().AllowCredentials().AllowAnyHeader().WithOrigins("https://steamloopback.host")));
-#endif
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -72,43 +67,51 @@ app.MapPost("/api/ToggleBuffer", (bool enabled, ObsRecordingService recordingSer
     }
 });
 
-app.MapGet("/api/status-event", async (HttpContext context, ObsRecordingService recordingService, ILogger logger) =>
+app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService) =>
 {
-    var response = context.Response;
-    response.Headers.Append("Content-Type", "text/event-stream");
-    response.Headers.Append("Cache-Control", "no-cache");
-    response.Headers.Append("Connection", "keep-alive");
-
-    var cts = new CancellationTokenSource();
-
-    Action<StatusModel> statusChangedAction = async (data) =>
+    using (logger.BeginScope("Status event stream"))
     {
-        if (!cts.Token.IsCancellationRequested)
+        logger.LogInformation("Status event stream connected");
+
+        var response = context.Response;
+        response.Headers.Append("Content-Type", "text/event-stream");
+        response.Headers.Append("Cache-Control", "no-cache");
+        response.Headers.Append("Connection", "keep-alive");
+
+        var cts = new CancellationTokenSource();
+
+        Action<StatusModel> statusChangedAction = async (data) =>
         {
-            try
+            logger.LogInformation("Status changed");
+            if (!cts.Token.IsCancellationRequested)
             {
-                var serializedData = JsonSerializer.Serialize(data, StatusSourceGenerationContext.Default.StatusModel);
-                await response.WriteAsync($"{serializedData}\n\n");
-                await response.Body.FlushAsync();
+                try
+                {
+                    var serializedData = JsonSerializer.Serialize(data, StatusSourceGenerationContext.Default.StatusModel);
+                    logger.LogInformation("Sending status event {data}", serializedData);
+                    await response.WriteAsync($"{serializedData}\n\n");
+                    await response.Body.FlushAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send status event");
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to send status event");
-            }
-        }
-    };
+
+        };
 
 
     recordingService.OnStatusChanged += statusChangedAction;
 
     context.RequestAborted.Register(() =>
     {
+        logger.LogInformation("Request aborted");
         cts.Cancel();
         recordingService.OnStatusChanged -= statusChangedAction;
 
     });
     await Task.Delay(Timeout.Infinite, cts.Token);
-
+    };
 });
 
 var recorder = app.Services.GetRequiredService<ObsRecordingService>();
