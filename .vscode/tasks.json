@@ -121,10 +121,21 @@
             "group": "none",
             "dependsOn": [
                 "build",
-                "deploy"
+                "deploy",
+                "restartpluginloader"
             ],
             "problemMatcher": []
         },
+        //RESTART plugin_loader service
+        {
+            "label": "restartpluginloader",
+            "detail": "Restart plugin_loader service",
+            "type": "shell",
+            "group": "none",
+            "command": "ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'echo ${config:deckpass} | sudo -S systemctl restart plugin_loader'",
+            "problemMatcher": []
+        },
+
         //GENERAL TASKS
         //Update Decky Frontend Library, aka DFL
         {

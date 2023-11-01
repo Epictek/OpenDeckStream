@@ -93,9 +93,9 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
   const ToggleBuffer = async (checked: boolean) => {
     var success = JSON.parse(await InvokeAction("ToggleBuffer", checked));
-
-    SetConfig({ ...Config, replayBufferEnabled: success });
-
+    if (success) {
+      SetConfig({ ...Config, replayBufferEnabled: checked });
+    }
   }
 
   const SaveConfig = (Config: ConfigType) => {
@@ -160,6 +160,30 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     }
   }
 
+  const ToggleStreamingRtc = () => {
+    if (!isStreaming) {
+      InvokeAction("StartStreamingRtc").then(() => {
+        setIsStreaming(true);
+      }).catch(() => {
+
+      })
+    } else {
+      InvokeAction("StopStreaming").then(() => {
+        setIsStreaming(false);
+        serverAPI.toaster.toast({
+          title: "finished streaming",
+          // body: "Tap to view",
+          body: "",
+          icon: <FaVideo />,
+          critical: true,
+          //onClick: () => Router.Navigate("/media/tab/videos")
+        })
+      }).catch(() => {
+
+      })
+    }
+  }
+
   //todo: don't hardcode bitrate
   var vbitrate = 3500;
   var abitrate = 128;
@@ -186,12 +210,25 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           {isRecording ? "Stop Recording" : "Start Recording"}
         </ButtonItem>
 
+        <Dropdown menuLabel="Streaming Service"
+          rgOptions={[
+          { data: "twitch", label: "Twitch" },
+          { data: "youtube", label: "Youtube" },
+          { data: "beam", label: "Beam" },
+          { data: "whip", label: "WebRTC (WHIP)" },
+          { data: "custom", label: "Custom" }
+        ]} 
+        selectedOption="twitch"
+        onChange={(x) => console.log(x)}/>
+
         <ButtonItem
           layout="below"
           onClick={ToggleStreaming}>
           {isStreaming ? "Stop Streaming" : "Start Streaming"}
         </ButtonItem>
+        
       </PanelSectionRow>
+
 
       <PanelSectionRow>
         {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}

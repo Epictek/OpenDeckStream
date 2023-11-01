@@ -14,6 +14,9 @@ public class ConfigModel
     public string Encoder { get; set; } = "ffmpeg_vaapi";
     public int ReplayBufferSize { get; set; } = 500;
     public string Key { get; set; } = "";
+    public float MicAudioLevel { get; set; } = 100;
+    public float DesktopAudioLevel { get; set; } = 100;
+    public bool MicrophoneEnabled { get; set; } = true;
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

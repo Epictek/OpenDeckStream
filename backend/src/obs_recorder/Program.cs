@@ -41,6 +41,9 @@ app.MapGet("/api/StartRecording", (ObsRecordingService recorder) => recorder.Sta
 app.MapGet("/api/StopRecording", (ObsRecordingService recorder) => recorder.StopRecording());
 app.MapGet("/api/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
 app.MapGet("/api/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
+
+app.MapGet("/api/StartStreamingRtc", (ObsRecordingService recorder) => recorder.StartStreamingRtc());
+
 app.MapGet("/api/GetStatus", (ObsRecordingService recorder) => recorder.GetStatus());
 app.MapGet("/api/GetConfig", (ConfigService config) => config.GetConfig());
 app.MapPost("/api/SaveConfig", (ConfigService config, ConfigModel newConfig) => config.SaveConfig(newConfig));
