@@ -20,8 +20,8 @@ devDependencies:
     specifier: ^6.0.1
     version: 6.0.1(rollup@2.79.1)
   '@rollup/plugin-node-resolve':
-    specifier: ^13.3.0
-    version: 13.3.0(rollup@2.79.1)
+    specifier: ^15.2.3
+    version: 15.2.3(rollup@2.79.1)
   '@rollup/plugin-replace':
     specifier: ^4.0.0
     version: 4.0.0(rollup@2.79.1)
@@ -122,14 +122,17 @@ packages:
       rollup: 2.79.1
     dev: true
 
-  /@rollup/plugin-node-resolve@13.3.0(rollup@2.79.1):
-    resolution: {integrity: sha512-Lus8rbUo1eEcnS4yTFKLZrVumLPY+YayBdWXgFSHYhTT2iJbMhoaaBL3xl5NCdeRytErGr8tZ0L71BMRmnlwSw==}
-    engines: {node: '>= 10.0.0'}
+  /@rollup/plugin-node-resolve@15.2.3(rollup@2.79.1):
+    resolution: {integrity: sha512-j/lym8nf5E21LwBT4Df1VD6hRO2L2iwUeUmP7litikRsVp1H6NWx20NEp0Y7su+7XGc476GnXXc4kFeZNGmaSQ==}
+    engines: {node: '>=14.0.0'}
     peerDependencies:
-      rollup: ^2.42.0
+      rollup: ^2.78.0||^3.0.0||^4.0.0
+    peerDependenciesMeta:
+      rollup:
+        optional: true
     dependencies:
-      '@rollup/pluginutils': 3.1.0(rollup@2.79.1)
-      '@types/resolve': 1.17.1
+      '@rollup/pluginutils': 5.0.5(rollup@2.79.1)
+      '@types/resolve': 1.20.2
       deepmerge: 4.3.1
       is-builtin-module: 3.2.1
       is-module: 1.0.0
@@ -235,10 +238,8 @@ packages:
       csstype: 3.1.2
     dev: true
 
-  /@types/resolve@1.17.1:
-    resolution: {integrity: sha512-yy7HuzQhj0dhGpD8RLXSZWEkLsV9ibvxvi6EiJ3bkqLAO1RGo0WbkWQiwpRlSFymTJRz0d3k5LM3kkx8ArDbLw==}
-    dependencies:
-      '@types/node': 20.2.5
+  /@types/resolve@1.20.2:
+    resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
     dev: true
 
   /@types/webpack@5.28.1:
