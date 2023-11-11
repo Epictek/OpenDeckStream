@@ -13,10 +13,12 @@ public class ConfigModel
     public int ReplayBufferSeconds { get; set; } = 60;
     public string Encoder { get; set; } = "ffmpeg_vaapi";
     public int ReplayBufferSize { get; set; } = 500;
-    public string Key { get; set; } = "";
     public float MicAudioLevel { get; set; } = 100;
     public float DesktopAudioLevel { get; set; } = 100;
     public bool MicrophoneEnabled { get; set; } = true;
+    public string StreamingService { get; set; } = "twitch";
+    public string StreamingKey { get; set; } = "";
+
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

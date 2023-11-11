@@ -7,6 +7,7 @@ import {
   // ProgressBar,
   Router,
   ServerAPI,
+  SliderField,
   staticClasses,
   ToggleField,
 } from "decky-frontend-lib";
@@ -17,8 +18,11 @@ import menu_icon from "../assets/sd_button_menu.svg";
 import steam_icon from "../assets/sd_button_steam.svg";
 
 interface ConfigType {
+  micVolume: number;
+  speakerVolume: number;
   replayBufferEnabled: boolean,
-  replayBufferSeconds: number
+  replayBufferSeconds: number,
+  streamingService: string,
 }
 
 const InvokeAction = async (action: string, obj: any = null) => {
@@ -78,7 +82,6 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
     InvokeAction("GetConfig").then((config: ConfigType) => {
       SetConfig(config);
-      // setBufferEnabled(config.replayBufferEnabled)
     });
 
     InvokeAction("GetStatus").then((status: any) => {
@@ -123,11 +126,9 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         setIsRecording(false);
         serverAPI.toaster.toast({
           title: "Recording saved",
-          // body: "Tap to view",
           body: "",
           icon: <FaVideo />,
           critical: true,
-          //onClick: () => Router.Navigate("/media/tab/videos")
         })
       }).catch(() => {
 
@@ -148,11 +149,9 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         setIsStreaming(false);
         serverAPI.toaster.toast({
           title: "finished streaming",
-          // body: "Tap to view",
           body: "",
           icon: <FaVideo />,
           critical: true,
-          //onClick: () => Router.Navigate("/media/tab/videos")
         })
       }).catch(() => {
 
@@ -172,11 +171,9 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         setIsStreaming(false);
         serverAPI.toaster.toast({
           title: "finished streaming",
-          // body: "Tap to view",
           body: "",
           icon: <FaVideo />,
           critical: true,
-          //onClick: () => Router.Navigate("/media/tab/videos")
         })
       }).catch(() => {
 
@@ -187,6 +184,10 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   //todo: don't hardcode bitrate
   var vbitrate = 3500;
   var abitrate = 128;
+
+  function setMicVolume(value: number): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <PanelSection>
@@ -219,7 +220,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
           { data: "custom", label: "Custom" }
         ]} 
         selectedOption="twitch"
-        onChange={(x) => console.log(x)}/>
+        onChange={(x) => SaveConfig({...Config, streamingService: x.data}) }/>
 
         <ButtonItem
           layout="below"
@@ -231,7 +232,8 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
 
       <PanelSectionRow>
-        {/* <SliderField label="Speaker Output" onChange={setVolume} value={volume} min={0} max={100} step={1} ></SliderField> */}
+        <SliderField label="Speaker Output" onChange={setMicVolume} value={Config.speakerVolume} min={0} max={100} step={10} ></SliderField>
+        <SliderField label="Microphone Output" onChange={setMicVolume} value={Config.micVolume} min={0} max={100} step={10} ></SliderField>
 
         {/* <div style={{ padding: "5px" }}>
           <ProgressBar nProgress={PeakVolume} nTransitionSec={0}></ProgressBar>
@@ -247,7 +249,46 @@ export default definePlugin((serverApi: ServerAPI) => {
   async function handleButtonInput(val: any[]) {
     for (const inputs of val) {
       // noinspection JSBitwiseOperatorUsage
-      if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
+      if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 12)) {
+        if (!isPressed) {
+          isPressed = true;
+          var recording = (await InvokeAction("GetStatus")).recording;
+          if (recording) {
+            InvokeAction("StartRecording").then(() => {
+              serverApi.toaster.toast({
+                title: "Recording started",
+                body: "",
+                icon: <FaVideo />,
+                critical: true,
+              })
+          }).catch(() => {
+            serverApi.toaster.toast({
+              title: "Failed to start recording",
+              body: "",
+              icon: <FaVideo />,
+              critical: true,
+            })
+          });
+        } else {
+          InvokeAction("StopRecording").then(() => {
+            serverApi.toaster.toast({
+              title: "Recording saved",
+              // body: "Tap to view",
+              body: "",
+              icon: <FaVideo />,
+              critical: true,
+            })
+          }).catch(() => {
+            serverApi.toaster.toast({
+              title: "Failed to save recording",
+              body: "",
+              icon: <FaVideo />,
+              critical: true,
+            })
+          })
+        }
+      } 
+      } else if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
         if (!isPressed) {
           isPressed = true;
           var config = await InvokeAction("GetConfig");

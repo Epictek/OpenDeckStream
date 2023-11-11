@@ -131,16 +131,18 @@ public class ObsRecordingService : IDisposable
         //     }
         // }), IntPtr.Zero);
 
+        var obsModuleConfig = Path.Combine(Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") ?? "/home/deck/homebrew/settings/OpenDeckStream", "obs");
+        Directory.CreateDirectory(obsModuleConfig);
+
         Logger.LogInformation("libobs version: " + obs_get_version_string());
-        if (!obs_startup("en-US", null, IntPtr.Zero))
+        if (!obs_startup("en-US", obsModuleConfig, IntPtr.Zero))
         {
             throw new Exception("error on libobs startup");
         }
 
         obs_add_data_path($"data/libobs/");
         obs_add_module_path($"obs-plugins/64bit/", $"data/obs-plugins/%module%/");
-        obs_load_all_modules();
-        obs_log_loaded_modules();
+
 
         obs_audio_info avi = new()
         {
@@ -150,6 +152,10 @@ public class ObsRecordingService : IDisposable
         bool resetAudioCode = obs_reset_audio(ref avi);
 
         ResetVideo();
+
+        obs_load_all_modules();
+        obs_log_loaded_modules();
+
 
         obs_post_load_modules();
         Logger.LogInformation("Loaded modules");
@@ -170,78 +176,67 @@ public class ObsRecordingService : IDisposable
 
     IntPtr service = IntPtr.Zero;
 
-        public void StartStreaming(){
-
-            streamOutput = obs_output_create("Beam Output", "Beam Output", IntPtr.Zero, IntPtr.Zero);
-            obs_output_start(streamOutput);
-        }
 
 
-    // public void StartStreaming()
-    // {
-    //     IntPtr settings = obs_data_create();
-    //     obs_data_set_string(settings, "server", "rtmp://lhr08.contribute.live-video.net/app/");
-    //     obs_data_set_string(settings, "service", "Twitch");
-    //     obs_data_set_string(settings, "key", "");
 
-    //     service = obs_service_create("rtmp_common", "rtmp_service", settings, IntPtr.Zero);
-    //     obs_data_release(settings);
-
-    //     if (service == IntPtr.Zero)
-    //     {
-    //         Console.WriteLine("Failed to create rtmp service.");
-    //         return;
-    //     }
-
-    //     // obs_service_update(service, settings);
-
-    //     streamOutput = obs_output_create("rtmp_output", "rtmp_output", IntPtr.Zero, IntPtr.Zero);
-
-    //     obs_output_set_video_encoder(streamOutput, videoEncoder);
-
-    //     nuint idx = 0;
-    //     foreach (var audioEncoder in audioEncoders)
-    //     {
-    //         obs_output_set_audio_encoder(streamOutput, audioEncoder.Value, idx);
-    //         idx++;
-    //     }
-    //     obs_output_set_service(streamOutput, service);
-
-    //     var success = obs_output_start(streamOutput);
-    //     Logger.LogInformation("stream output successful start: " + success);
-    // }
-
-    public void StartStreamingRtc()
+    public void StartStreaming()
     {
-        service = obs_service_create("whip_custom", "whip_service", IntPtr.Zero, IntPtr.Zero);
-
-
-        if (service == IntPtr.Zero)
+        var config = ConfigService.GetConfig();
+        string server = "";
+        switch (config.StreamingService)
         {
-            Console.WriteLine("Failed to create WHIP service.");
-            return;
+            case "twitch":
+                server = "rtmp://lhr08.contribute.live-video.net/app/";
+                break;
+            case "rtc":
+
+                break;
+            default:
+                throw new Exception("Unknown streaming service: " + config.StreamingService);
         }
 
-        IntPtr settings = obs_service_get_settings(service);
-        if (settings == IntPtr.Zero)
+        IntPtr settings = obs_data_create();
+
+        if (config.StreamingService == "whip")
         {
-            Logger.LogError("Failed to get WHIP service settings.");
-            settings = obs_data_create();
+            service = obs_service_create("whip_custom", "whip_service", IntPtr.Zero, IntPtr.Zero);
+
+
+            if (service == IntPtr.Zero)
+            {
+                Console.WriteLine("Failed to create WHIP service.");
+                return;
+            }
+
+            server = "https://b.siobud.com/api/whip";
+
+            obs_data_set_string(settings, "service", "whip_custom");
+            obs_data_set_string(settings, "bearer_token", config.StreamingKey);
+            obs_data_set_string(settings, "server", server);
+
+            obs_service_update(service, settings);
+            obs_data_release(settings);
+
+            streamOutput = obs_output_create("whip_output", "whip_output", IntPtr.Zero, IntPtr.Zero);
         }
-        // obs_data_set_string(settings, "server", "rtmp://live.twitch.tv/app/");
-        obs_data_set_string(settings, "service", "whip_custom");
+        else
+        {
 
-        // Logger.LogInformation("service: {service}", obs_data_get_string(settings, "service"));
+            obs_data_set_string(settings, "server", server);
+            obs_data_set_string(settings, "service", config.StreamingService);
+            obs_data_set_string(settings, "key", config.StreamingKey);
 
-        obs_data_set_string(settings, "bearer_token", "ods_test");
-        obs_data_set_string(settings, "server", "https://b.siobud.com/api/whip");
+            service = obs_service_create("rtmp_common", "rtmp_service", settings, IntPtr.Zero);
+            obs_data_release(settings);
 
+            if (service == IntPtr.Zero)
+            {
+                Console.WriteLine("Failed to create rtmp service.");
+                return;
+            }
 
-
-        obs_service_update(service, settings);
-        obs_data_release(settings);
-
-        streamOutput = obs_output_create("whip_output", "whip_output", IntPtr.Zero, IntPtr.Zero);
+            streamOutput = obs_output_create("rtmp_output", "rtmp_output", IntPtr.Zero, IntPtr.Zero);
+        }
 
         obs_output_set_video_encoder(streamOutput, videoEncoder);
 
@@ -252,12 +247,74 @@ public class ObsRecordingService : IDisposable
             idx++;
         }
         obs_output_set_service(streamOutput, service);
+
         var success = obs_output_start(streamOutput);
         Logger.LogInformation("stream output successful start: " + success);
     }
 
+    public void StartBeamOutput()
+    {
+        var beamOutput = obs_get_output_by_name("Beam Output");
+        if (beamOutput == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output");
+            return;
+        }
+        IntPtr settings = obs_output_get_settings(beamOutput);
+        if (settings == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output settings");
+            settings = obs_data_create();
+        }
+
+        obs_data_set_bool(settings, "enabled", true);
+        obs_data_set_bool(settings, "connection_type_socket", true);
+        obs_data_set_string(settings, "network_interface_list", "Any: 0.0.0.0");
+
+        obs_output_update(beamOutput, settings);
+        obs_data_release(settings);
+        obs_output_start(beamOutput);
+    }
+
+    public void StopBeamOutput(){
+        var beamOutput = obs_get_output_by_name("Beam Output");
+        if (beamOutput == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output");
+            return;
+        }
+        IntPtr settings = obs_output_get_settings(beamOutput);
+        if (settings == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output settings");
+            settings = obs_data_create();
+        }
+
+        obs_data_set_bool(settings, "enabled", false);
+        obs_output_update(beamOutput, settings);
+        obs_data_release(settings);
+
+        obs_output_stop(beamOutput);
+    }
+
     public void StopStreaming()
     {
+        streamOutput = obs_get_output_by_name("Beam Output");
+        if (streamOutput == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output");
+            return;
+        }
+        IntPtr settings = obs_output_get_settings(streamOutput);
+        if (settings == IntPtr.Zero)
+        {
+            Logger.LogError("Failed to get stream output settings");
+            settings = obs_data_create();
+        }
+
+        obs_data_set_bool(settings, "enabled", false);
+
+
         obs_output_stop(streamOutput);
         obs_output_release(streamOutput);
         obs_service_release(service);
@@ -364,16 +421,16 @@ public class ObsRecordingService : IDisposable
         // obs_data_set_int(videoEncoderSettings, "qp", 20);
         // obs_data_set_int(videoEncoderSettings, "maxrate", 0);
 
-		obs_data_set_int(	videoEncoderSettings, "width",		1280);
-		obs_data_set_int(	videoEncoderSettings, "height",		800);
-		obs_data_set_int(	videoEncoderSettings, "fps_num",		30);
-		// TODO sw encoder settings
-		// obs_data_set_int(enc_v_settings, "buffer_size",		settings->videoBitrateKbps);
-		obs_data_set_string(videoEncoderSettings, "preset",		"ultrafast");
-		obs_data_set_string(videoEncoderSettings, "profile",		"main");
-		obs_data_set_string(videoEncoderSettings, "tune",			"zerolatency");
-		obs_data_set_string(videoEncoderSettings, "x264opts",		"");
-		// obs_data_set_bool(enc_v_settings, "use_bufsize"
+        obs_data_set_int(videoEncoderSettings, "width", 1280);
+        obs_data_set_int(videoEncoderSettings, "height", 800);
+        obs_data_set_int(videoEncoderSettings, "fps_num", 30);
+        // TODO sw encoder settings
+        // obs_data_set_int(enc_v_settings, "buffer_size",		settings->videoBitrateKbps);
+        obs_data_set_string(videoEncoderSettings, "preset", "ultrafast");
+        obs_data_set_string(videoEncoderSettings, "profile", "main");
+        obs_data_set_string(videoEncoderSettings, "tune", "zerolatency");
+        obs_data_set_string(videoEncoderSettings, "x264opts", "");
+        // obs_data_set_bool(enc_v_settings, "use_bufsize"
         // videoEncoder = obs_video_encoder_create(config.Encoder, "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
         videoEncoder = obs_video_encoder_create("obs_x264", "obs_x264 Encoder", videoEncoderSettings, IntPtr.Zero);
         obs_encoder_set_video(videoEncoder, obs_get_video());
@@ -428,7 +485,7 @@ public class ObsRecordingService : IDisposable
         {
             obs_output_set_audio_encoder(bufferOutput, audioEncoder.Value, idx);
             idx++;
-        }   
+        }
     }
 
     public void UpdateBufferSettings()
@@ -459,7 +516,7 @@ public class ObsRecordingService : IDisposable
         {
             obs_output_set_audio_encoder(recordOutput, audioEncoder.Value, idx);
             idx++;
-        }   
+        }
     }
 
     public bool StartBufferOutput()

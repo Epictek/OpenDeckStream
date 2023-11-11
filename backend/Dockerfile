@@ -24,9 +24,16 @@ RUN git clone https://github.com/epictek/obs-studio \
     && git submodule update --init --recursive \
     && mkdir build \
     && cd build \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_VLC=OFF -DENABLE_PIPEWIRE=ON -DENABLE_BROWSER=OFF -DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_DECKLINK=OFF -DENABLE_UI=OFF -DENABLE_AJA=0 -DENABLE_WEBRTC=ON -DLINUX_PORTABLE=ON -DENABLE_VST=OFF -DENABLE_QSV11=OFF -DENABLE_HEVC=ON -DCMAKE_INSTALL_PREFIX="/obs-portable" ../ \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_VLC=OFF -DENABLE_PIPEWIRE=ON -DENABLE_BROWSER=OFF -DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_DECKLINK=OFF -DENABLE_UI=OFF -DENABLE_AJA=0 -DENABLE_WEBRTC=ON -DLINUX_PORTABLE=ON -DENABLE_VST=OFF -DENABLE_QSV11=OFF -DENABLE_HEVC=ON -DCMAKE_INSTALL_PREFIX="/home/deck/homebrew/plugins/OpenDeckStream/bin/obs" ../ \
     && make \
     && make install
 
+# building libjpeg-turbo for beam from source because the version in the repos is too old
+# RUN wget https://sourceforge.net/projects/libjpeg-turbo/files/3.0.1/libjpeg-turbo-3.0.1.tar.gz \
+#     && tar -xvf libjpeg-turbo-3.0.1.tar.gz \
+#     && cd libjpeg-turbo-3.0.1 \
+#     && cmake -B build -D CMAKE_INSTALL_PREFIX=/usr -D CMAKE_INSTALL_LIBDIR=/usr/lib \
+#     && cmake --build build \
+#     && cmake --install build
 
 ENTRYPOINT [ "/backend/entrypoint.sh" ]
