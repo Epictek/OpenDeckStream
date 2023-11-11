@@ -15,9 +15,10 @@ public class ConfigModel
     public int ReplayBufferSize { get; set; } = 500;
     public float MicAudioLevel { get; set; } = 100;
     public float DesktopAudioLevel { get; set; } = 100;
-    public bool MicrophoneEnabled { get; set; } = true;
+    public bool MicrophoneEnabled { get; set; } = false;
     public string StreamingService { get; set; } = "twitch";
     public string StreamingKey { get; set; } = "";
+    public int FPS { get; set; } = 30;
 
 }
 

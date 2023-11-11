@@ -276,7 +276,8 @@ public class ObsRecordingService : IDisposable
         obs_output_start(beamOutput);
     }
 
-    public void StopBeamOutput(){
+    public void StopBeamOutput()
+    {
         var beamOutput = obs_get_output_by_name("Beam Output");
         if (beamOutput == IntPtr.Zero)
         {
@@ -416,23 +417,31 @@ public class ObsRecordingService : IDisposable
 
         IntPtr videoEncoderSettings = obs_data_create();
 
-        // obs_data_set_int(videoEncoderSettings, "level", 40);
-        obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
-        // obs_data_set_int(videoEncoderSettings, "qp", 20);
-        // obs_data_set_int(videoEncoderSettings, "maxrate", 0);
+        var MonitorSize = X11Interop.GetSize(); 
+        obs_data_set_int(videoEncoderSettings, "width", (uint)MonitorSize.width);
+        obs_data_set_int(videoEncoderSettings, "height", (uint)MonitorSize.height);
+        obs_data_set_int(videoEncoderSettings, "fps_num", (uint)config.FPS);
 
-        obs_data_set_int(videoEncoderSettings, "width", 1280);
-        obs_data_set_int(videoEncoderSettings, "height", 800);
-        obs_data_set_int(videoEncoderSettings, "fps_num", 30);
-        // TODO sw encoder settings
-        // obs_data_set_int(enc_v_settings, "buffer_size",		settings->videoBitrateKbps);
-        obs_data_set_string(videoEncoderSettings, "preset", "ultrafast");
-        obs_data_set_string(videoEncoderSettings, "profile", "main");
-        obs_data_set_string(videoEncoderSettings, "tune", "zerolatency");
-        obs_data_set_string(videoEncoderSettings, "x264opts", "");
-        // obs_data_set_bool(enc_v_settings, "use_bufsize"
-        // videoEncoder = obs_video_encoder_create(config.Encoder, "FFMPEG VAAPI Encoder", videoEncoderSettings, IntPtr.Zero);
-        videoEncoder = obs_video_encoder_create("obs_x264", "obs_x264 Encoder", videoEncoderSettings, IntPtr.Zero);
+
+        if (config.Encoder == "obs_x264")
+        {
+            obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
+
+            obs_data_set_string(videoEncoderSettings, "preset", "ultrafast");
+            obs_data_set_string(videoEncoderSettings, "profile", "main");
+            obs_data_set_string(videoEncoderSettings, "tune", "zerolatency");
+            obs_data_set_string(videoEncoderSettings, "x264opts", "");
+        }
+        else if (config.Encoder == "ffmpeg_vaapi")
+        {
+            obs_data_set_int(videoEncoderSettings, "level", 40);
+            obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
+            obs_data_set_int(videoEncoderSettings, "qp", 20);
+            obs_data_set_int(videoEncoderSettings, "maxrate", 0);
+            obs_data_set_bool(videoEncoderSettings, "use_bufsize", true);
+        }
+        videoEncoder = obs_video_encoder_create(config.Encoder, config.Encoder + " Video Encoder", videoEncoderSettings, IntPtr.Zero);
+
         obs_encoder_set_video(videoEncoder, obs_get_video());
         obs_data_release(videoEncoderSettings);
 
