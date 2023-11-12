@@ -51,6 +51,8 @@ internal partial class VolumePeakLevelSourceGenerationContext : JsonSerializerCo
 
 public class ConfigService
 {
+    public ConfigModel Config;
+    public EventHandler ConfigChanged;
     private readonly string ConfigFilePath = Environment.GetEnvironmentVariable("DECKY_PLUGIN_SETTINGS_DIR") + "/config.json";
     private ILogger Logger { get; }
 
@@ -60,12 +62,16 @@ public class ConfigService
 
         if (!File.Exists(ConfigFilePath))
         {
-            var config = new ConfigModel();
-            _= SaveConfig(config);
+            Config = new ConfigModel();
+            _= SaveConfig(Config);
+        }
+        else
+        {
+            Config = GetConfig();
         }
     }
 
-    public ConfigModel GetConfig()
+    ConfigModel GetConfig()
     {
         Logger.LogInformation("Loading config");
         try {
@@ -97,6 +103,8 @@ public class ConfigService
         Logger.LogInformation("Saving config");
         var json = JsonSerializer.Serialize(config, ConfigSourceGenerationContext.Default.ConfigModel);
         await File.WriteAllTextAsync(ConfigFilePath, json);
+        Config = config;
+        ConfigChanged?.Invoke(this, EventArgs.Empty);
         return config;
     }
 }

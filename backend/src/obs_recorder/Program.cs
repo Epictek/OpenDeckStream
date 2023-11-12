@@ -50,23 +50,24 @@ app.MapGet("/api/SaveReplayBuffer", (ObsRecordingService recorder) => recorder.S
 
 app.MapPost("/api/ToggleBuffer", async (bool enabled, ObsRecordingService recordingService, ConfigService configService, ILogger<Program> logger) =>
 {
-    try {
-    var config = configService.GetConfig();
-
-    if (config.ReplayBufferEnabled == enabled) return true;
-
-    config.ReplayBufferEnabled = enabled;
-    await configService.SaveConfig(config);
-
-    if (config.ReplayBufferEnabled)
+    try
     {
-        return recordingService.StartBufferOutput();
-    }
-    else
-    {
-        recordingService.StopBufferOutput();
-        return true;
-    }
+        var config = configService.GetConfig();
+
+        if (config.ReplayBufferEnabled == enabled) return true;
+
+        config.ReplayBufferEnabled = enabled;
+        await configService.SaveConfig(config);
+
+        if (config.ReplayBufferEnabled)
+        {
+            return recordingService.StartBufferOutput();
+        }
+        else
+        {
+            recordingService.StopBufferOutput();
+            return true;
+        }
     }
     catch (Exception ex)
     {
@@ -75,12 +76,24 @@ app.MapPost("/api/ToggleBuffer", async (bool enabled, ObsRecordingService record
     }
 });
 
+app.MapGet("/api/ToggleMic", async (ObsRecordingService recordingService, ILogger<Program> logger) =>
+{
+    try
+    {
+        recordingService.ToggleMic();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to toggle mic");
+    }
+});
+
 
 app.MapGet("/api/volume-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService) =>
 {
     try
     {
-        logger.LogInformation("Status event stream connected");
+        logger.LogInformation("volume event stream connected");
 
         var response = context.Response;
         response.Headers.Append("Content-Type", "text/event-stream");
@@ -91,13 +104,11 @@ app.MapGet("/api/volume-event", async (ILogger<Program> logger, HttpContext cont
 
         Action<VolumePeakLevel> volumeChangedAction = async (data) =>
         {
-            logger.LogInformation("Status changed");
             if (!cts.Token.IsCancellationRequested)
             {
                 try
                 {
                     var serializedData = JsonSerializer.Serialize(data, VolumePeakLevelSourceGenerationContext.Default.VolumePeakLevel);
-                    logger.LogInformation("Sending status event {data}", serializedData);
                     await response.WriteAsync("event: peak\n");
                     await response.WriteAsync($"data: {serializedData}\n\n");
                     await response.Body.FlushAsync();
@@ -109,7 +120,6 @@ app.MapGet("/api/volume-event", async (ILogger<Program> logger, HttpContext cont
             }
 
         };
-
 
         recordingService.OnVolumePeakChanged += volumeChangedAction;
 
@@ -131,7 +141,7 @@ app.MapGet("/api/volume-event", async (ILogger<Program> logger, HttpContext cont
 });
 
 
-app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService) =>
+app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService, ConfigService configService) =>
 {
     try
     {
@@ -162,10 +172,17 @@ app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext cont
                     logger.LogError(ex, "Failed to send status event");
                 }
             }
-
         };
 
 
+        configService.ConfigChanged += async (object o, System.EventArgs sender) =>
+        {
+            var serializedData = JsonSerializer.Serialize(configService.Config, ConfigSourceGenerationContext.Default.ConfigModel);
+            await response.WriteAsync("event: config\n");
+            await response.WriteAsync($"data: {serializedData}\n\n");
+            await response.Body.FlushAsync();
+
+        };
         recordingService.OnStatusChanged += statusChangedAction;
 
         context.RequestAborted.Register(() =>
@@ -173,6 +190,14 @@ app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext cont
             logger.LogInformation("Request aborted");
             cts.Cancel();
             recordingService.OnStatusChanged -= statusChangedAction;
+            configService.ConfigChanged -= async (object o, System.EventArgs sender) =>
+        {
+            var serializedData = JsonSerializer.Serialize(configService.Config, ConfigSourceGenerationContext.Default.ConfigModel);
+            await response.WriteAsync("event: config\n");
+            await response.WriteAsync($"data: {serializedData}\n\n");
+            await response.Body.FlushAsync();
+
+        };
 
         });
         await Task.Delay(Timeout.Infinite, cts.Token);
@@ -184,6 +209,8 @@ app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext cont
         logger.LogError(ex, "Failed to send status event");
     }
 });
+
+
 
 var recorder = app.Services.GetRequiredService<ObsRecordingService>();
 recorder.Init();

@@ -312,7 +312,18 @@ namespace obs_net
         public static extern float obs_source_get_volume(obs_source_t source);
 
         [DllImport(importLibrary, CallingConvention = importCall)]
-        public static extern string obs_source_get_name(obs_source_t source);
+        public static extern IntPtr obs_source_get_name(obs_source_t source);
+
+
+        public static string GetSourceName(IntPtr source)
+        {
+            IntPtr namePtr = obs_source_get_name(source);
+            if (namePtr != IntPtr.Zero)
+            {
+                return Marshal.PtrToStringUTF8(namePtr); // Use PtrToStringUni for UTF-16
+            }
+            return null;
+        }
 
         public enum VideoResetError
         {

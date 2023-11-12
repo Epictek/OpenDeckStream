@@ -9,8 +9,8 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 mkdir -p /backend/out
 cd /backend/src/obs_recorder
 
-dotnet publish -r linux-x64 -c Release -o /backend/out/
-# dotnet publish -r linux-x64 -c Debug -o /backend/out/
+# dotnet publish -r linux-x64 -c Release -o /backend/out/
+dotnet publish -r linux-x64 -c Debug -o /backend/out/
 
 #rm -rf /backend/out/obs_recorder.dbg
 

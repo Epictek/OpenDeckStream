@@ -19,11 +19,17 @@ import menu_icon from "../assets/sd_button_menu.svg";
 import steam_icon from "../assets/sd_button_steam.svg";
 
 interface ConfigType {
-  micVolume: number;
-  speakerVolume: number;
-  replayBufferEnabled: boolean,
-  replayBufferSeconds: number,
-  streamingService: string,
+  videoOutputPath: string;
+  replayBufferEnabled: boolean;
+  replayBufferSeconds: number;
+  encoder: string;
+  replayBufferSize: number;
+  micAudioLevel: number;
+  desktopAudioLevel: number;
+  microphoneEnabled: boolean;
+  streamingService: string;
+  streamingKey: string;
+  fps: number;
 }
 
 const InvokeAction = async (action: string, obj: any = null) => {
@@ -72,39 +78,41 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     const evtSource = new EventSource("http://localhost:9988/api/status-event");
 
     evtSource.onmessage = (event) => {
-        console.log(event.data);
-        var status = JSON.parse(event.data);
-        console.log(status);
-        setIsRecording(status.recording);
-        };
+      console.log(event.data);
+      var status = JSON.parse(event.data);
+      console.log(status);
+      setIsRecording(status.recording);
+    };
 
 
-        evtSource.addEventListener("status", (event) => {
-          var status = JSON.parse(event.data);
-          setIsRecording(status.recording);
-          console.log(event);
-        });
-      
+    evtSource.addEventListener("status", (event) => {
+      var status = JSON.parse(event.data);
+      setIsRecording(status.recording);
+      console.log(event);
+    });
+
+    evtSource.addEventListener("config", (event) => {
+      var status = JSON.parse(event.data);
+      SetConfig(status);
+    });
 
 
-        const volSource = new EventSource("http://localhost:9988/api/volume-event");
+    const volSource = new EventSource("http://localhost:9988/api/volume-event");
 
-        volSource.addEventListener("peak", (event) => {
-          console.log(event);
+    volSource.addEventListener("peak", (event) => {
+      console.log(event);
 
-          var level = JSON.parse(event.data);
-          SetPeakVolumeMicLevel(level.peak);
+      var level = JSON.parse(event.data);
+      if (level.Source == "mic_audio") {
+        SetPeakVolumeMicLevel(level.Peak);
+      } else if (level.Source == "desktop_audio") {
+        SetPeakDesktopLevel(level.Peak);
+      }
+    });
 
-          if (level.source == "mic"){
-            // SetPeakVolumeMicLevel(level.peak);
-          } else if (level.source == "desktop") {
-            SetPeakDesktopLevel(level.peak);
-          }
-        });
-
-        volSource.onerror = (error) => {
-        console.error("EventSource failed:", error);
-        evtSource.close();
+    volSource.onerror = (error) => {
+      console.error("EventSource failed:", error);
+      evtSource.close();
     };
 
 
@@ -125,14 +133,20 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
   const ToggleBuffer = async (checked: boolean) => {
     var success = JSON.parse(await InvokeAction("ToggleBuffer", checked));
-    if (success) {
-      SetConfig({ ...Config, replayBufferEnabled: checked });
-    }
+    // if (success) {
+    //   SetConfig({ ...Config, replayBufferEnabled: checked });
+    // }
+  }
+
+  const ToggleMic = async (checked: boolean) => {
+    SaveConfig({ ...Config, microphoneEnabled: checked });
+      await InvokeAction("ToggleMic", checked);
+
   }
 
   const SaveConfig = (Config: ConfigType) => {
     InvokeAction("SaveConfig", Config);
-    SetConfig(Config);
+    // SetConfig(Config);
   }
 
   const ChangeBufferSeconds = async (seconds: number) => {
@@ -221,35 +235,40 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
         <Dropdown menuLabel="Streaming Service"
           rgOptions={[
-          { data: "twitch", label: "Twitch" },
-          { data: "youtube", label: "Youtube" },
-          { data: "beam", label: "Beam" },
-          { data: "whip", label: "WebRTC (WHIP)" },
-          { data: "custom", label: "Custom" }
-        ]} 
-        selectedOption="twitch"
-        onChange={(x) => SaveConfig({...Config, streamingService: x.data}) }/>
+            { data: "twitch", label: "Twitch" },
+            { data: "youtube", label: "Youtube" },
+            { data: "beam", label: "Beam" },
+            { data: "whip", label: "WebRTC (WHIP)" },
+            { data: "custom", label: "Custom" }
+          ]}
+          selectedOption="twitch"
+          onChange={(x) => SaveConfig({ ...Config, streamingService: x.data })} />
 
         <ButtonItem
           layout="below"
           onClick={ToggleStreaming}>
           {isStreaming ? "Stop Streaming" : "Start Streaming"}
         </ButtonItem>
-        
+
       </PanelSectionRow>
 
 
       <PanelSectionRow>
-        <SliderField label="Speaker Output" onChange={setMicVolume} value={Config.speakerVolume} min={0} max={100} step={1} ></SliderField>
+        <SliderField label="Speaker Output" onChange={setMicVolume} value={Config.desktopAudioLevel} min={0} max={100} step={1} ></SliderField>
         <div style={{ padding: "5px" }}>
           <ProgressBar nProgress={PeakVolumeDesktop} nTransitionSec={0.1}></ProgressBar>
         </div>
 
-        <SliderField label="Microphone Output" onChange={setMicVolume} value={Config.micVolume} min={0} max={100} step={1} ></SliderField>
+        <ToggleField layout="below" label={"Microphone Enabled"} checked={Config.microphoneEnabled} onChange={ToggleMic} />
 
-        <div style={{ padding: "5px" }}>
-          <ProgressBar nProgress={PeakVolumeMic} nTransitionSec={0.1}></ProgressBar>
+        {Config.microphoneEnabled && <div>
+          <SliderField label="Microphone Output" onChange={setMicVolume} value={Config.micAudioLevel} min={0} max={100} step={1} ></SliderField>
+
+          <div style={{ padding: "5px" }}>
+            <ProgressBar nProgress={PeakVolumeMic} nTransitionSec={0.1}></ProgressBar>
+          </div>
         </div>
+        }
       </PanelSectionRow>
     </PanelSection>
   );
@@ -273,33 +292,33 @@ export default definePlugin((serverApi: ServerAPI) => {
                 icon: <FaVideo />,
                 critical: true,
               })
-          }).catch(() => {
-            serverApi.toaster.toast({
-              title: "Failed to start recording",
-              body: "",
-              icon: <FaVideo />,
-              critical: true,
+            }).catch(() => {
+              serverApi.toaster.toast({
+                title: "Failed to start recording",
+                body: "",
+                icon: <FaVideo />,
+                critical: true,
+              })
+            });
+          } else {
+            InvokeAction("StopRecording").then(() => {
+              serverApi.toaster.toast({
+                title: "Recording saved",
+                // body: "Tap to view",
+                body: "",
+                icon: <FaVideo />,
+                critical: true,
+              })
+            }).catch(() => {
+              serverApi.toaster.toast({
+                title: "Failed to save recording",
+                body: "",
+                icon: <FaVideo />,
+                critical: true,
+              })
             })
-          });
-        } else {
-          InvokeAction("StopRecording").then(() => {
-            serverApi.toaster.toast({
-              title: "Recording saved",
-              // body: "Tap to view",
-              body: "",
-              icon: <FaVideo />,
-              critical: true,
-            })
-          }).catch(() => {
-            serverApi.toaster.toast({
-              title: "Failed to save recording",
-              body: "",
-              icon: <FaVideo />,
-              critical: true,
-            })
-          })
+          }
         }
-      } 
       } else if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
         if (!isPressed) {
           isPressed = true;

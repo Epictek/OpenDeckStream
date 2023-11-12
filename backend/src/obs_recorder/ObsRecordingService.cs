@@ -164,10 +164,10 @@ public class ObsRecordingService : IDisposable
 
         Initialized = true;
         Logger.LogInformation("Initialized");
-        var config = ConfigService.GetConfig();
-        Logger.LogError("Config: " + JsonSerializer.Serialize(config, ConfigSourceGenerationContext.Default.ConfigModel));
 
-        if (config.ReplayBufferEnabled && config.ReplayBufferSeconds > 0)
+        Logger.LogError("Config: " + JsonSerializer.Serialize(ConfigService.Config, ConfigSourceGenerationContext.Default.ConfigModel));
+
+        if (ConfigService.Config.ReplayBufferEnabled && ConfigService.Config.ReplayBufferSeconds > 0)
         {
             StartBufferOutput();
         }
@@ -181,9 +181,9 @@ public class ObsRecordingService : IDisposable
 
     public void StartStreaming()
     {
-        var config = ConfigService.GetConfig();
+
         string server = "";
-        switch (config.StreamingService)
+        switch (ConfigService.Config.StreamingService)
         {
             case "twitch":
                 server = "rtmp://lhr08.contribute.live-video.net/app/";
@@ -192,12 +192,12 @@ public class ObsRecordingService : IDisposable
 
                 break;
             default:
-                throw new Exception("Unknown streaming service: " + config.StreamingService);
+                throw new Exception("Unknown streaming service: " + ConfigService.Config.StreamingService);
         }
 
         IntPtr settings = obs_data_create();
 
-        if (config.StreamingService == "whip")
+        if (ConfigService.Config.StreamingService == "whip")
         {
             service = obs_service_create("whip_custom", "whip_service", IntPtr.Zero, IntPtr.Zero);
 
@@ -211,7 +211,7 @@ public class ObsRecordingService : IDisposable
             server = "https://b.siobud.com/api/whip";
 
             obs_data_set_string(settings, "service", "whip_custom");
-            obs_data_set_string(settings, "bearer_token", config.StreamingKey);
+            obs_data_set_string(settings, "bearer_token", ConfigService.Config.StreamingKey);
             obs_data_set_string(settings, "server", server);
 
             obs_service_update(service, settings);
@@ -223,8 +223,8 @@ public class ObsRecordingService : IDisposable
         {
 
             obs_data_set_string(settings, "server", server);
-            obs_data_set_string(settings, "service", config.StreamingService);
-            obs_data_set_string(settings, "key", config.StreamingKey);
+            obs_data_set_string(settings, "service", ConfigService.Config.StreamingService);
+            obs_data_set_string(settings, "key", ConfigService.Config.StreamingKey);
 
             service = obs_service_create("rtmp_common", "rtmp_service", settings, IntPtr.Zero);
             obs_data_release(settings);
@@ -403,27 +403,38 @@ public class ObsRecordingService : IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Channel = 0, Source = obs_source_get_name(source) });
+        Logger.LogError("Volume: " + percentage);
+
+        string sourceName = null;
+        if (source == IntPtr.Zero)
+        {
+            Logger.LogError("Source is null");
+        }
+        else
+        {
+            sourceName = GetSourceName(source);
+        }
+
+        Logger.LogError("Source: " + sourceName);
+        OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Source = sourceName });
     }
 
 
     void InitVideoOut()
     {
-        var config = ConfigService.GetConfig();
-
         IntPtr videoSource = obs_source_create("pipewire-gamescope-capture-source", "Gamescope Capture Source", IntPtr.Zero, IntPtr.Zero);
 
         obs_set_output_source(0, videoSource);
 
         IntPtr videoEncoderSettings = obs_data_create();
 
-        var MonitorSize = X11Interop.GetSize(); 
+        var MonitorSize = X11Interop.GetSize();
         obs_data_set_int(videoEncoderSettings, "width", (uint)MonitorSize.width);
         obs_data_set_int(videoEncoderSettings, "height", (uint)MonitorSize.height);
-        obs_data_set_int(videoEncoderSettings, "fps_num", (uint)config.FPS);
+        obs_data_set_int(videoEncoderSettings, "fps_num", (uint)ConfigService.Config.FPS);
 
 
-        if (config.Encoder == "obs_x264")
+        if (ConfigService.Config.Encoder == "obs_x264")
         {
             obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
 
@@ -432,7 +443,7 @@ public class ObsRecordingService : IDisposable
             obs_data_set_string(videoEncoderSettings, "tune", "zerolatency");
             obs_data_set_string(videoEncoderSettings, "x264opts", "");
         }
-        else if (config.Encoder == "ffmpeg_vaapi")
+        else if (ConfigService.Config.Encoder == "ffmpeg_vaapi")
         {
             obs_data_set_int(videoEncoderSettings, "level", 40);
             obs_data_set_int(videoEncoderSettings, "bitrate", 3500);
@@ -440,7 +451,7 @@ public class ObsRecordingService : IDisposable
             obs_data_set_int(videoEncoderSettings, "maxrate", 0);
             obs_data_set_bool(videoEncoderSettings, "use_bufsize", true);
         }
-        videoEncoder = obs_video_encoder_create(config.Encoder, config.Encoder + " Video Encoder", videoEncoderSettings, IntPtr.Zero);
+        videoEncoder = obs_video_encoder_create(ConfigService.Config.Encoder, ConfigService.Config.Encoder + " Video Encoder", videoEncoderSettings, IntPtr.Zero);
 
         obs_encoder_set_video(videoEncoder, obs_get_video());
         obs_data_release(videoEncoderSettings);
@@ -453,33 +464,42 @@ public class ObsRecordingService : IDisposable
         var desktopAudio = obs_source_create("pulse_output_capture", "desktop_audio", IntPtr.Zero, IntPtr.Zero);
         obs_set_output_source(1, desktopAudio);
         obs_source_set_audio_mixers(desktopAudio, 1 | 2);  // Adjusted mixer logic for 2 channels
-        obs_source_set_volume(desktopAudio, config.DesktopAudioLevel / (float)100);
-        
+        obs_source_set_volume(desktopAudio, ConfigService.Config.DesktopAudioLevel / (float)100);
+
         obs_source_add_audio_capture_callback(desktopAudio, OnAudioData, IntPtr.Zero);
 
         var desktopEncoder = obs_audio_encoder_create("ffmpeg_aac", "desktop_audio_encoder", IntPtr.Zero, (UIntPtr)1, IntPtr.Zero);
         audioEncoders.Add("desktop_audio_encoder", desktopEncoder);
         obs_encoder_set_audio(desktopEncoder, obs_get_audio());
 
-        if (config.MicrophoneEnabled)
+        ToggleMic();
+    }
+
+    public void ToggleMic()
+    {
+        if (ConfigService.Config.MicrophoneEnabled)
         {
             var micAudio = obs_source_create("pulse_input_capture", "mic_audio", IntPtr.Zero, IntPtr.Zero);
             obs_set_output_source(2, micAudio);  // Using index 2 for the second channel
             obs_source_set_audio_mixers(micAudio, 1 | 4);  // Adjusted mixer logic for 2 channels
-            obs_source_set_volume(micAudio, config.MicAudioLevel / (float)100);
+            obs_source_set_volume(micAudio, ConfigService.Config.MicAudioLevel / (float)100);
             obs_source_add_audio_capture_callback(micAudio, OnAudioData, IntPtr.Zero);
 
             var micEncoder = obs_audio_encoder_create("ffmpeg_aac", "mic_audio_encoder", IntPtr.Zero, (UIntPtr)2, IntPtr.Zero);
             audioEncoders.Add("mic_audio_encoder", micEncoder);
             obs_encoder_set_audio(micEncoder, obs_get_audio());
         }
+        else
+        {
+            obs_set_output_source(2, NULL);
+            audioEncoders.Remove("mic_audio_encoder");
+        }
+
     }
 
     void InitBufferOutput()
     {
-        var config = ConfigService.GetConfig();
-
-        var replayDir = Path.Combine(config.VideoOutputPath, "Replays");
+        var replayDir = Path.Combine(ConfigService.Config.VideoOutputPath, "Replays");
         Directory.CreateDirectory(replayDir);
 
         IntPtr bufferOutputSettings = obs_data_create();
@@ -487,8 +507,8 @@ public class ObsRecordingService : IDisposable
         obs_data_set_string(bufferOutputSettings, "format", "%CCYY-%MM-%DD %hh-%mm-%ss");
         obs_data_set_string(bufferOutputSettings, "extension", "mp4");
         //obs_data_set_int(bufferOutputSettings, "duration_sec", 60);
-        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
-        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)config.ReplayBufferSize);
+        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)ConfigService.Config.ReplayBufferSeconds);
+        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)ConfigService.Config.ReplayBufferSize);
         bufferOutput = obs_output_create("replay_buffer", "replay_buffer_output", bufferOutputSettings, IntPtr.Zero);
         obs_data_release(bufferOutputSettings);
 
@@ -503,18 +523,17 @@ public class ObsRecordingService : IDisposable
 
     public void UpdateBufferSettings()
     {
-        var config = ConfigService.GetConfig();
         IntPtr bufferOutputSettings = obs_data_create();
-        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)config.ReplayBufferSeconds);
-        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)config.ReplayBufferSize);
+        obs_data_set_int(bufferOutputSettings, "max_time_sec", (uint)ConfigService.Config.ReplayBufferSeconds);
+        obs_data_set_int(bufferOutputSettings, "max_size_mb", (uint)ConfigService.Config.ReplayBufferSize);
         obs_output_update(bufferOutput, bufferOutputSettings);
         obs_data_release(bufferOutputSettings);
     }
 
     public void SetupNewRecordOutput()
     {
-        var config = ConfigService.GetConfig();
-        var videoDir = config.VideoOutputPath;
+
+        var videoDir = ConfigService.Config.VideoOutputPath;
         Directory.CreateDirectory(videoDir);
 
         IntPtr recordOutputSettings = obs_data_create();
@@ -633,6 +652,5 @@ public class StatusModel
 public class VolumePeakLevel
 {
     public float Peak { get; set; }
-    public int Channel { get; set; }
-    public object Source { get; internal set; }
+    public string? Source { get; set; }
 }
