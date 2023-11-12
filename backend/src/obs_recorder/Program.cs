@@ -43,7 +43,7 @@ app.MapGet("/api/StartStreaming", (ObsRecordingService recorder) => recorder.Sta
 app.MapGet("/api/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
 
 app.MapGet("/api/GetStatus", (ObsRecordingService recorder) => recorder.GetStatus());
-app.MapGet("/api/GetConfig", (ConfigService config) => config.GetConfig());
+app.MapGet("/api/GetConfig", (ConfigService configService) => configService.Config);
 app.MapPost("/api/SaveConfig", (ConfigService config, ConfigModel newConfig) => config.SaveConfig(newConfig));
 app.MapGet("/api/UpdateBufferSettings", (ObsRecordingService recorder) => recorder.UpdateBufferSettings());
 app.MapGet("/api/SaveReplayBuffer", (ObsRecordingService recorder) => recorder.SaveReplayBuffer());
@@ -52,10 +52,9 @@ app.MapPost("/api/ToggleBuffer", async (bool enabled, ObsRecordingService record
 {
     try
     {
-        var config = configService.GetConfig();
 
-        if (config.ReplayBufferEnabled == enabled) return true;
-
+        if (configService.Config.ReplayBufferEnabled == enabled) return true;
+        var config = configService.Config;
         config.ReplayBufferEnabled = enabled;
         await configService.SaveConfig(config);
 

@@ -403,8 +403,6 @@ public class ObsRecordingService : IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        Logger.LogError("Volume: " + percentage);
-
         string sourceName = null;
         if (source == IntPtr.Zero)
         {
@@ -415,7 +413,6 @@ public class ObsRecordingService : IDisposable
             sourceName = GetSourceName(source);
         }
 
-        Logger.LogError("Source: " + sourceName);
         OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Source = sourceName });
     }
 
