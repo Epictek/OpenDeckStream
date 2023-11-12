@@ -311,6 +311,8 @@ namespace obs_net
         [DllImport(importLibrary, CallingConvention = importCall)]
         public static extern float obs_source_get_volume(obs_source_t source);
 
+        [DllImport(importLibrary, CallingConvention = importCall)]
+        public static extern string obs_source_get_name(obs_source_t source);
 
         public enum VideoResetError
         {

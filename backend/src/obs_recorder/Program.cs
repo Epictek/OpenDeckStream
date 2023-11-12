@@ -42,22 +42,21 @@ app.MapGet("/api/StopRecording", (ObsRecordingService recorder) => recorder.Stop
 app.MapGet("/api/StartStreaming", (ObsRecordingService recorder) => recorder.StartStreaming());
 app.MapGet("/api/StopStreaming", (ObsRecordingService recorder) => recorder.StopStreaming());
 
-app.MapGet("/api/StartStreamingRtc", (ObsRecordingService recorder) => recorder.StartStreamingRtc());
-
 app.MapGet("/api/GetStatus", (ObsRecordingService recorder) => recorder.GetStatus());
 app.MapGet("/api/GetConfig", (ConfigService config) => config.GetConfig());
 app.MapPost("/api/SaveConfig", (ConfigService config, ConfigModel newConfig) => config.SaveConfig(newConfig));
 app.MapGet("/api/UpdateBufferSettings", (ObsRecordingService recorder) => recorder.UpdateBufferSettings());
 app.MapGet("/api/SaveReplayBuffer", (ObsRecordingService recorder) => recorder.SaveReplayBuffer());
 
-app.MapPost("/api/ToggleBuffer", (bool enabled, ObsRecordingService recordingService, ConfigService configService) =>
+app.MapPost("/api/ToggleBuffer", async (bool enabled, ObsRecordingService recordingService, ConfigService configService, ILogger<Program> logger) =>
 {
+    try {
     var config = configService.GetConfig();
 
     if (config.ReplayBufferEnabled == enabled) return true;
 
     config.ReplayBufferEnabled = enabled;
-    _ = configService.SaveConfig(config);
+    await configService.SaveConfig(config);
 
     if (config.ReplayBufferEnabled)
     {
@@ -68,11 +67,73 @@ app.MapPost("/api/ToggleBuffer", (bool enabled, ObsRecordingService recordingSer
         recordingService.StopBufferOutput();
         return true;
     }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to toggle buffer");
+        return false;
+    }
 });
+
+
+app.MapGet("/api/volume-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService) =>
+{
+    try
+    {
+        logger.LogInformation("Status event stream connected");
+
+        var response = context.Response;
+        response.Headers.Append("Content-Type", "text/event-stream");
+        response.Headers.Append("Cache-Control", "no-cache");
+        response.Headers.Append("Connection", "keep-alive");
+
+        var cts = new CancellationTokenSource();
+
+        Action<VolumePeakLevel> volumeChangedAction = async (data) =>
+        {
+            logger.LogInformation("Status changed");
+            if (!cts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    var serializedData = JsonSerializer.Serialize(data, VolumePeakLevelSourceGenerationContext.Default.VolumePeakLevel);
+                    logger.LogInformation("Sending status event {data}", serializedData);
+                    await response.WriteAsync("event: peak\n");
+                    await response.WriteAsync($"data: {serializedData}\n\n");
+                    await response.Body.FlushAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send status event");
+                }
+            }
+
+        };
+
+
+        recordingService.OnVolumePeakChanged += volumeChangedAction;
+
+        context.RequestAborted.Register(() =>
+        {
+            logger.LogInformation("Request aborted");
+            cts.Cancel();
+            recordingService.OnVolumePeakChanged -= volumeChangedAction;
+
+        });
+        await Task.Delay(Timeout.Infinite, cts.Token);
+
+
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to send status event");
+    }
+});
+
 
 app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext context, ObsRecordingService recordingService) =>
 {
-    using (logger.BeginScope("Status event stream"))
+    try
     {
         logger.LogInformation("Status event stream connected");
 
@@ -92,7 +153,8 @@ app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext cont
                 {
                     var serializedData = JsonSerializer.Serialize(data, StatusSourceGenerationContext.Default.StatusModel);
                     logger.LogInformation("Sending status event {data}", serializedData);
-                    await response.WriteAsync($"{serializedData}\n\n");
+                    await response.WriteAsync("event: status\n");
+                    await response.WriteAsync($"data: {serializedData}\n\n");
                     await response.Body.FlushAsync();
                 }
                 catch (Exception ex)
@@ -104,17 +166,23 @@ app.MapGet("/api/status-event", async (ILogger<Program> logger, HttpContext cont
         };
 
 
-    recordingService.OnStatusChanged += statusChangedAction;
+        recordingService.OnStatusChanged += statusChangedAction;
 
-    context.RequestAborted.Register(() =>
+        context.RequestAborted.Register(() =>
+        {
+            logger.LogInformation("Request aborted");
+            cts.Cancel();
+            recordingService.OnStatusChanged -= statusChangedAction;
+
+        });
+        await Task.Delay(Timeout.Infinite, cts.Token);
+
+
+    }
+    catch (Exception ex)
     {
-        logger.LogInformation("Request aborted");
-        cts.Cancel();
-        recordingService.OnStatusChanged -= statusChangedAction;
-
-    });
-    await Task.Delay(Timeout.Infinite, cts.Token);
-    };
+        logger.LogError(ex, "Failed to send status event");
+    }
 });
 
 var recorder = app.Services.GetRequiredService<ObsRecordingService>();

@@ -37,6 +37,16 @@ internal partial class StatusSourceGenerationContext : JsonSerializerContext
 {
 }
 
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(VolumePeakLevel))]
+internal partial class VolumePeakLevelSourceGenerationContext : JsonSerializerContext
+{
+}
+
+
+
 
 
 public class ConfigService

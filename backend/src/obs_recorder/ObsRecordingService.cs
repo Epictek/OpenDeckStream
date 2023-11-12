@@ -403,7 +403,7 @@ public class ObsRecordingService : IDisposable
 
         percentage = Math.Min(Math.Max(percentage, 0.0f), 100.0f);
 
-        OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Channel = 0 });
+        OnVolumePeakChanged?.Invoke(new VolumePeakLevel() { Peak = percentage, Channel = 0, Source = obs_source_get_name(source) });
     }
 
 
@@ -454,6 +454,9 @@ public class ObsRecordingService : IDisposable
         obs_set_output_source(1, desktopAudio);
         obs_source_set_audio_mixers(desktopAudio, 1 | 2);  // Adjusted mixer logic for 2 channels
         obs_source_set_volume(desktopAudio, config.DesktopAudioLevel / (float)100);
+        
+        obs_source_add_audio_capture_callback(desktopAudio, OnAudioData, IntPtr.Zero);
+
         var desktopEncoder = obs_audio_encoder_create("ffmpeg_aac", "desktop_audio_encoder", IntPtr.Zero, (UIntPtr)1, IntPtr.Zero);
         audioEncoders.Add("desktop_audio_encoder", desktopEncoder);
         obs_encoder_set_audio(desktopEncoder, obs_get_audio());
@@ -464,6 +467,7 @@ public class ObsRecordingService : IDisposable
             obs_set_output_source(2, micAudio);  // Using index 2 for the second channel
             obs_source_set_audio_mixers(micAudio, 1 | 4);  // Adjusted mixer logic for 2 channels
             obs_source_set_volume(micAudio, config.MicAudioLevel / (float)100);
+            obs_source_add_audio_capture_callback(micAudio, OnAudioData, IntPtr.Zero);
 
             var micEncoder = obs_audio_encoder_create("ffmpeg_aac", "mic_audio_encoder", IntPtr.Zero, (UIntPtr)2, IntPtr.Zero);
             audioEncoders.Add("mic_audio_encoder", micEncoder);
@@ -625,8 +629,10 @@ public class StatusModel
     public bool BufferRunning { get; set; }
 }
 
+
 public class VolumePeakLevel
 {
     public float Peak { get; set; }
     public int Channel { get; set; }
+    public object Source { get; internal set; }
 }

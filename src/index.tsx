@@ -4,6 +4,7 @@ import {
   Dropdown,
   PanelSection,
   PanelSectionRow,
+  ProgressBar,
   // ProgressBar,
   Router,
   ServerAPI,
@@ -64,6 +65,9 @@ const InvokeAction = async (action: string, obj: any = null) => {
 const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   const [Config, SetConfig] = useState({ replayBufferSeconds: 60, replayBufferEnabled: true } as ConfigType);
 
+  const [PeakVolumeDesktop, SetPeakDesktopLevel] = useState(0);
+  const [PeakVolumeMic, SetPeakVolumeMicLevel] = useState(0);
+
   useEffect(() => {
     const evtSource = new EventSource("http://localhost:9988/api/status-event");
 
@@ -74,7 +78,31 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
         setIsRecording(status.recording);
         };
 
-    evtSource.onerror = (error) => {
+
+        evtSource.addEventListener("status", (event) => {
+          var status = JSON.parse(event.data);
+          setIsRecording(status.recording);
+          console.log(event);
+        });
+      
+
+
+        const volSource = new EventSource("http://localhost:9988/api/volume-event");
+
+        volSource.addEventListener("peak", (event) => {
+          console.log(event);
+
+          var level = JSON.parse(event.data);
+          SetPeakVolumeMicLevel(level.peak);
+
+          if (level.source == "mic"){
+            // SetPeakVolumeMicLevel(level.peak);
+          } else if (level.source == "desktop") {
+            SetPeakDesktopLevel(level.peak);
+          }
+        });
+
+        volSource.onerror = (error) => {
         console.error("EventSource failed:", error);
         evtSource.close();
     };
@@ -90,6 +118,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
     return () => {
       evtSource.close();
+      volSource.close();
     };
 
   }, []);
@@ -159,27 +188,6 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
     }
   }
 
-  const ToggleStreamingRtc = () => {
-    if (!isStreaming) {
-      InvokeAction("StartStreamingRtc").then(() => {
-        setIsStreaming(true);
-      }).catch(() => {
-
-      })
-    } else {
-      InvokeAction("StopStreaming").then(() => {
-        setIsStreaming(false);
-        serverAPI.toaster.toast({
-          title: "finished streaming",
-          body: "",
-          icon: <FaVideo />,
-          critical: true,
-        })
-      }).catch(() => {
-
-      })
-    }
-  }
 
   //todo: don't hardcode bitrate
   var vbitrate = 3500;
@@ -232,12 +240,16 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 
 
       <PanelSectionRow>
-        <SliderField label="Speaker Output" onChange={setMicVolume} value={Config.speakerVolume} min={0} max={100} step={10} ></SliderField>
-        <SliderField label="Microphone Output" onChange={setMicVolume} value={Config.micVolume} min={0} max={100} step={10} ></SliderField>
+        <SliderField label="Speaker Output" onChange={setMicVolume} value={Config.speakerVolume} min={0} max={100} step={1} ></SliderField>
+        <div style={{ padding: "5px" }}>
+          <ProgressBar nProgress={PeakVolumeDesktop} nTransitionSec={0.1}></ProgressBar>
+        </div>
 
-        {/* <div style={{ padding: "5px" }}>
-          <ProgressBar nProgress={PeakVolume} nTransitionSec={0}></ProgressBar>
-        </div> */}
+        <SliderField label="Microphone Output" onChange={setMicVolume} value={Config.micVolume} min={0} max={100} step={1} ></SliderField>
+
+        <div style={{ padding: "5px" }}>
+          <ProgressBar nProgress={PeakVolumeMic} nTransitionSec={0.1}></ProgressBar>
+        </div>
       </PanelSectionRow>
     </PanelSection>
   );
@@ -331,7 +343,6 @@ export default definePlugin((serverApi: ServerAPI) => {
   const suspendResumeRegistration = window.SteamClient.System.RegisterForOnResumeFromSuspend(async () => {
     //todo: implement
   });
-
 
   return {
     title: <div className={staticClasses.Title}>OpenDeckStream</div>,

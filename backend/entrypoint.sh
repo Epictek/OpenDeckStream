@@ -9,13 +9,12 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 mkdir -p /backend/out
 cd /backend/src/obs_recorder
 
-# dotnet publish -r linux-x64 -c Release -o /backend/out/
-dotnet publish -r linux-x64 -c Debug -o /backend/out/
+dotnet publish -r linux-x64 -c Release -o /backend/out/
+# dotnet publish -r linux-x64 -c Debug -o /backend/out/
 
 #rm -rf /backend/out/obs_recorder.dbg
 
-cd /backend/src/xObsBeam/src/
-
+# cd /backend/src/xObsBeam/src/
 # dotnet publish -c Release -o xobsbeam -r linux-x64 /p:NativeLib=Shared /p:SelfContained=true
 
 OBS_LOCATION=/home/deck/homebrew/plugins/OpenDeckStream/bin/obs/
