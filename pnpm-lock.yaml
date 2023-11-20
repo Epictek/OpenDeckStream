@@ -9,8 +9,8 @@ dependencies:
     specifier: ^3.23.1
     version: 3.23.1
   react-icons:
-    specifier: ^4.4.0
-    version: 4.9.0
+    specifier: ^4.12.0
+    version: 4.12.0
 
 devDependencies:
   '@rollup/plugin-commonjs':
@@ -718,8 +718,8 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /react-icons@4.9.0:
-    resolution: {integrity: sha512-ijUnFr//ycebOqujtqtV9PFS7JjhWg0QU6ykURVHuL4cbofvRCf3f6GMn9+fBktEFQOIVZnuAYLZdiyadRQRFg==}
+  /react-icons@4.12.0:
+    resolution: {integrity: sha512-IBaDuHiShdZqmfc/TwHu6+d6k2ltNCf3AszxNmjJc1KUfXdEeRJOKyNvLmAHaarhzGmTSVygNdyu8/opXv2gaw==}
     peerDependencies:
       react: '*'
     peerDependenciesMeta:
